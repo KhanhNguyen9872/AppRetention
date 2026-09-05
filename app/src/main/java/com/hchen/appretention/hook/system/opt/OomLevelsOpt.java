@@ -44,6 +44,35 @@ import java.util.Arrays;
  */
 public final class OomLevelsOpt {
     private static final int OOM_MIN_FREE_DISCOUNT = 3;
+
+    private static long getTotalMemory() {
+        try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader("/proc/meminfo"))) {
+            String line = br.readLine();
+            if (line != null) {
+                String[] parts = line.split("\\s+");
+                if (parts.length >= 2) {
+                    return Long.parseLong(parts[1]) * 1024L;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return 8L * 1024 * 1024 * 1024L;
+    }
+
+    private static int getDiscountFactor() {
+        int propDiscount = com.hchen.hooktool.utils.SystemPropTool.getProp("persist.hchen.oom.discount", 0);
+        if (propDiscount > 0) {
+            return propDiscount;
+        }
+        long totalMemory = getTotalMemory();
+        if (totalMemory >= 15L * 1024 * 1024 * 1024L) { // 16GB+
+            return 5;
+        } else if (totalMemory >= 11L * 1024 * 1024 * 1024L) { // 12GB+
+            return 4;
+        } else {
+            return 3;
+        }
+    }
     private static final int PAGE_SIZE = (int) Os.sysconf(OsConstants._SC_PAGESIZE);
     private static Object mProcessListInstance = null;
 
@@ -165,7 +194,8 @@ public final class OomLevelsOpt {
         if (mOomMinFree == null)
             return null;
 
-        int[] mOomMinFreeArray = Arrays.stream(mOomMinFree).map(operand -> operand / OOM_MIN_FREE_DISCOUNT).toArray();
+        int discount = getDiscountFactor();
+        int[] mOomMinFreeArray = Arrays.stream(mOomMinFree).map(operand -> Math.max(operand / discount, 8192)).toArray();
         setField(processListInstance, SystemField.mOomMinFree, mOomMinFreeArray);
         return mOomMinFreeArray;
     }

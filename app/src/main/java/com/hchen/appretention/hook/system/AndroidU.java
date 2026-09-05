@@ -62,6 +62,10 @@ import android.os.Looper;
 import com.hchen.appretention.hook.system.opt.ApplyAdjOpt;
 import com.hchen.appretention.hook.system.opt.CacheCompaction;
 import com.hchen.appretention.hook.system.opt.OomLevelsOpt;
+import com.hchen.appretention.hook.system.opt.KillShieldOpt;
+import com.hchen.appretention.hook.system.opt.DeviceIdleOpt;
+import com.hchen.appretention.hook.nubia.NubiaPolicy;
+import com.hchen.hooktool.utils.DeviceTool;
 import com.hchen.collect.HookEntrance;
 import com.hchen.hooktool.HCBase;
 import com.hchen.hooktool.hook.IHook;
@@ -79,6 +83,11 @@ public class AndroidU extends HCBase {
         OomLevelsOpt.init();
         CacheCompaction.init();
         ApplyAdjOpt.init();
+        KillShieldOpt.init();
+        DeviceIdleOpt.init();
+        if (DeviceTool.isRightRom("nubia", "zte", "redmagic")) {
+            NubiaPolicy.manualInit();
+        }
 
         // ----------- ProcessList ----------------------
         /*

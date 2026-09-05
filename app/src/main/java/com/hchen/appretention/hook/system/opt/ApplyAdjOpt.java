@@ -84,6 +84,11 @@ public class ApplyAdjOpt {
     private static final HashSet<String> mSystemSigningAppMap = new HashSet<>();
     private static Object mService;
     private static Object mProcessList;
+    private static final int PERCEPTIBLE_TIER_MIN_ADJ = 200;
+    private static final int PERCEPTIBLE_TIER_MAX_ADJ = 249;
+    private static final int PERCEPTIBLE_SUB_MIN_ADJ = 250;
+    private static final int PERCEPTIBLE_SUB_MAX_ADJ = 299;
+    private static final int SERVICE_TIER_MIN_ADJ = 500;
     private static final int MAIN_PROCESS_MIN_ADJ = 600;
     private static final int MAIN_PROCESS_MAX_ADJ = 699;
     private static final int SUB_PROCESS_MIN_ADJ = 700;
@@ -174,9 +179,26 @@ public class ApplyAdjOpt {
                     if (index == -1) return;
 
                     ApplyAdjOpt.ProcessRecord pr = new ApplyAdjOpt.ProcessRecord(app);
-                    int adj = (pr.isMainProcess || pr.isolated || pr.isSdkSandbox) ?
-                        Math.min(MAIN_PROCESS_MIN_ADJ + index, MAIN_PROCESS_MAX_ADJ) :
-                        Math.min(SUB_PROCESS_MIN_ADJ + index, SUB_PROCESS_MAX_ADJ);
+                    boolean isPerceptibleTierEnabled = SystemPropTool.getProp("persist.hchen.adj.perceptible.enable", true);
+                    int perceptibleCount = SystemPropTool.getProp("persist.hchen.adj.perceptible.count", 8);
+
+                    boolean isMain = pr.isMainProcess || pr.isolated || pr.isSdkSandbox;
+                    int adj;
+                    if (isPerceptibleTierEnabled && index < perceptibleCount) {
+                        if (isMain) {
+                            adj = Math.min(PERCEPTIBLE_TIER_MIN_ADJ + (index * 5), PERCEPTIBLE_TIER_MAX_ADJ);
+                        } else {
+                            adj = Math.min(PERCEPTIBLE_SUB_MIN_ADJ + (index * 5), PERCEPTIBLE_SUB_MAX_ADJ);
+                        }
+                    } else {
+                        int offset = isPerceptibleTierEnabled ? (index - perceptibleCount) : index;
+                        if (offset < 0) offset = 0;
+                        if (isMain) {
+                            adj = Math.min(SERVICE_TIER_MIN_ADJ + offset, MAIN_PROCESS_MAX_ADJ);
+                        } else {
+                            adj = Math.min(SUB_PROCESS_MIN_ADJ + offset, SUB_PROCESS_MAX_ADJ);
+                        }
+                    }
                     pr.setCurAdj(adj);
                     pr.setCurRawAdj(adj);
                     // AndroidLog.logD(TAG, "update: packageName=" + pr.packageName + ", processName=" + pr.processName + ", adj=" + adj);
