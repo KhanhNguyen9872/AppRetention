@@ -1,0 +1,53 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+def defVersion = '3.2.2'
+int defVersionCode = 2026081600
+
+android {
+    namespace 'com.hchen.hooktool'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 29
+        targetSdk 34
+        versionCode defVersionCode
+        versionName defVersion
+
+        aarMetadata {
+            minCompileSdk = 29
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            consumerProguardFiles 'proguard-rules.pro'
+        }
+
+        debug {
+            minifyEnabled false
+            consumerProguardFiles 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_21.toString()
+    }
+
+    buildFeatures {
+        buildConfig false
+    }
+}
+
+dependencies {
+    compileOnly 'io.github.libxposed:api:101.0.0'
+    compileOnly 'androidx.annotation:annotation:1.9.1'
+}

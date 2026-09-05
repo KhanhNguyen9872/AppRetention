@@ -20,7 +20,7 @@
             android:value="true" />
         <meta-data
             android:name="xposedminversion"
-            android:value="93" />
+            android:value="101" />
     </application>
 
 </manifest>

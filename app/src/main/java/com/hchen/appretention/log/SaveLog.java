@@ -20,7 +20,7 @@ package com.hchen.appretention.log;
 
 import static com.hchen.appretention.data.prop.SystemProp.FALSE;
 import static com.hchen.appretention.data.prop.SystemProp.TRUE;
-import static com.hchen.hooktool.log.XposedLog.logENoSave;
+import static com.hchen.appretention.log.XposedLog.logENoSave;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;

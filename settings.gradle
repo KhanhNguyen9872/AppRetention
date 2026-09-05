@@ -20,8 +20,3 @@ rootProject.name = "AppRetentionHook"
 include ':app'
 include ':HookTool'
 include ':app:collect'
-include ':k80p' // 报错可删
-include ':k50' // 报错可删
-include ':11p' // 报错可删
-include ':aosp' // 报错可删
-include ':color'

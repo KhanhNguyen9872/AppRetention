@@ -43,7 +43,7 @@ import com.hchen.collect.HookEntrance;
 import com.hchen.hooktool.HCBase;
 import com.hchen.hooktool.hook.IHook;
 import com.hchen.hooktool.log.AndroidLog;
-import com.hchen.hooktool.log.XposedLog;
+import com.hchen.appretention.log.XposedLog;
 import com.hchen.hooktool.utils.SystemPropTool;
 
 import java.io.BufferedReader;

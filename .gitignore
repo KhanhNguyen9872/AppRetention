@@ -24,3 +24,6 @@ local.properties
 /aosp/.*
 /color
 /color/.*
+
+bin/
+*.apk

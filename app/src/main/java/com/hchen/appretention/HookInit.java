@@ -1,108 +1,115 @@
-/*
- * This file is part of AppRetentionHook.
-
- * AppRetentionHook is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
-
- * Copyright (C) 2023-2025 HChenX
- */
 package com.hchen.appretention;
 
-import static com.hchen.hooktool.log.XposedLog.logENoSave;
+import static com.hchen.appretention.log.XposedLog.logENoSave;
 
 import androidx.annotation.NonNull;
 
 import com.hchen.appretention.hook.EntranceMap;
 import com.hchen.appretention.log.SaveLog;
 import com.hchen.hooktool.HCBase;
-import com.hchen.hooktool.HCEntrance;
-import com.hchen.hooktool.HCInit;
+import com.hchen.hooktool.HCData;
+import com.hchen.hooktool.ModuleConfig;
+import com.hchen.hooktool.ModuleData;
+import com.hchen.hooktool.ModuleEntrance;
 import com.hchen.hooktool.utils.DeviceTool;
 import com.hchen.hooktool.utils.SystemPropTool;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.function.BiConsumer;
-
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 /**
- * Hook 入口
+ * Modern LibXposed API 101 Hook Entry Point.
  *
- * @author 焕晨HChen
+ * @author HChenX
  */
-public class HookInit extends HCEntrance {
+public class HookInit extends ModuleEntrance {
     private static final String TAG = "AppRetention";
 
-    @NonNull
     @Override
-    public HCInit.BasicData initHC(@NonNull HCInit.BasicData basicData) {
-        return basicData
-            .setTag(TAG)
-            .setModulePackageName(BuildConfig.APPLICATION_ID)
-            .setLogLevel(HCInit.LOG_D)
-            .setLogExpandPath("com.hchen.appretention.hook");
+    public void initModuleConfig() {
+        ModuleConfig.setLogTag(TAG);
+        ModuleConfig.setLogLevel(ModuleConfig.LOG_D);
+        ModuleConfig.setPrefsName("AppRetention");
     }
 
     @Override
-    public void onLoadPackage(@NonNull XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
-        EntranceMap.get().forEach(new BiConsumer<>() {
-            @Override
-            public void accept(String s, EntranceMap entranceMap) {
-                if (!entranceMap.mTargetPackage.equals(loadPackageParam.packageName))
-                    return;
-                if (!"Any".equals(entranceMap.mTargetBrand) && !DeviceTool.isRightRom(entranceMap.mTargetBrand))
-                    return;
-                if (!(entranceMap.mTargetSdks[0] == 0) && Arrays.stream(entranceMap.mTargetSdks).noneMatch(DeviceTool::isAndroidVersion))
-                    return;
-                if ("Xiaomi".equals(entranceMap.mTargetBrand)) {
-                    if (entranceMap.mTargetOS != -1) {
-                        if (entranceMap.isHyperOS) {
-                            if (!DeviceTool.isHyperOSVersion(entranceMap.mTargetOS) && !entranceMap.mUpward && !entranceMap.mDownward)
-                                return;
-                            if (entranceMap.mUpward && !(DeviceTool.getHyperOSVersion() >= entranceMap.mTargetOS))
-                                return;
-                            if (entranceMap.mDownward && !(DeviceTool.getHyperOSVersion() <= entranceMap.mTargetOS))
-                                return;
-                        } else if (DeviceTool.getMiuiVersion() != 0f) {
-                            if (!DeviceTool.isMiuiVersion(entranceMap.mTargetOS) && !entranceMap.mUpward && !entranceMap.mDownward)
-                                return;
-                            if (entranceMap.mUpward && !(DeviceTool.getMiuiVersion() >= entranceMap.mTargetOS))
-                                return;
-                            if (entranceMap.mDownward && !(DeviceTool.getMiuiVersion() <= entranceMap.mTargetOS))
-                                return;
-                        } else return;
+    public void handleSystemServerStarting(@NonNull SystemServerStartingParam param) {
+        ModuleData.setClassLoader(param.getClassLoader());
+        HCData.setTargetPackageName("android");
+        dispatchHooks("android", param.getClassLoader());
+    }
+
+    @Override
+    public void handlePackageReady(@NonNull PackageReadyParam param) {
+        ModuleData.setClassLoader(param.getClassLoader());
+        HCData.setTargetPackageName(param.getPackageName());
+        dispatchHooks(param.getPackageName(), param.getClassLoader());
+    }
+
+    private void dispatchHooks(@NonNull String targetPackage, @NonNull ClassLoader classLoader) {
+        EntranceMap.get().forEach((className, entranceMap) -> {
+            if (!entranceMap.mTargetPackage.equals(targetPackage)) {
+                return;
+            }
+            if (!"Any".equals(entranceMap.mTargetBrand) && !DeviceTool.isRightRom(entranceMap.mTargetBrand)) {
+                return;
+            }
+
+            // Android SDK compatibility check with upward & downward support (supports Android 16 SDK 36)
+            if (!(entranceMap.mTargetSdks.length == 1 && entranceMap.mTargetSdks[0] == 0)) {
+                int currentSdk = android.os.Build.VERSION.SDK_INT;
+                int minSdk = Arrays.stream(entranceMap.mTargetSdks).min().orElse(0);
+                int maxSdk = Arrays.stream(entranceMap.mTargetSdks).max().orElse(Integer.MAX_VALUE);
+                if (entranceMap.mUpward) {
+                    if (currentSdk < minSdk) {
+                        return;
+                    }
+                } else if (entranceMap.mDownward) {
+                    if (currentSdk > maxSdk) {
+                        return;
+                    }
+                } else {
+                    if (Arrays.stream(entranceMap.mTargetSdks).noneMatch(DeviceTool::isAndroidVersion)) {
+                        return;
                     }
                 }
+            }
 
-                if (Objects.equals(entranceMap.mTargetBrand, "samsung")) {
-                    if (!isEnableOneUi())
-                        return; // 暂时关闭 OneUi 修改
+            if ("Xiaomi".equals(entranceMap.mTargetBrand)) {
+                if (entranceMap.mTargetOS != -1) {
+                    if (entranceMap.isHyperOS) {
+                        if (!DeviceTool.isHyperOSVersion(entranceMap.mTargetOS) && !entranceMap.mUpward && !entranceMap.mDownward)
+                            return;
+                        if (entranceMap.mUpward && !(DeviceTool.getHyperOSVersion() >= entranceMap.mTargetOS))
+                            return;
+                        if (entranceMap.mDownward && !(DeviceTool.getHyperOSVersion() <= entranceMap.mTargetOS))
+                            return;
+                    } else if (DeviceTool.getMiuiVersion() != 0f) {
+                        if (!DeviceTool.isMiuiVersion(entranceMap.mTargetOS) && !entranceMap.mUpward && !entranceMap.mDownward)
+                            return;
+                        if (entranceMap.mUpward && !(DeviceTool.getMiuiVersion() >= entranceMap.mTargetOS))
+                            return;
+                        if (entranceMap.mDownward && !(DeviceTool.getMiuiVersion() <= entranceMap.mTargetOS))
+                            return;
+                    } else {
+                        return;
+                    }
                 }
-                try {
-                    Class<?> hookClass = getClass().getClassLoader().loadClass(s);
-                    HCBase hcBase = (HCBase) hookClass.getDeclaredConstructor().newInstance();
-                    String className = hcBase.TAG;
-                    SaveLog.initLogToFile(className);
-                    // SaveLog.initSaveLog(className);
-                    HCInit.initLoadPackageParam(loadPackageParam);
-                    hcBase.onLoadPackage();
-                } catch (ClassNotFoundException | NoSuchMethodException |
-                         IllegalAccessException |
-                         InstantiationException | InvocationTargetException e) {
-                    logENoSave(TAG, e);
+            }
+
+            if (Objects.equals(entranceMap.mTargetBrand, "samsung")) {
+                if (!isEnableOneUi()) {
+                    return; // 暂时关闭 OneUi 修改
                 }
+            }
+
+            try {
+                Class<?> hookClass = getClass().getClassLoader().loadClass(className);
+                HCBase hcBase = (HCBase) hookClass.getDeclaredConstructor().newInstance();
+                SaveLog.initLogToFile(hcBase.TAG);
+                hcBase.onLoadPackage();
+            } catch (Throwable e) {
+                logENoSave(TAG, e);
             }
         });
     }

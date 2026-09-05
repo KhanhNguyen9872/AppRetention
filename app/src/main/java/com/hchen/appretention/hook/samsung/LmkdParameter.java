@@ -28,8 +28,8 @@ import static com.hchen.appretention.data.path.SystemClass.ProcessList;
 import static com.hchen.hooktool.core.CoreTool.callStaticMethod;
 import static com.hchen.hooktool.core.CoreTool.findClass;
 import static com.hchen.hooktool.core.CoreTool.hookMethod;
-import static com.hchen.hooktool.log.XposedLog.logD;
-import static com.hchen.hooktool.log.XposedLog.logI;
+import static com.hchen.appretention.log.XposedLog.logD;
+import static com.hchen.appretention.log.XposedLog.logI;
 
 import android.util.Pair;
 

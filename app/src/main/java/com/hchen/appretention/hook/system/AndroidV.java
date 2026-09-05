@@ -67,11 +67,11 @@ import com.hchen.hooktool.HCBase;
 import com.hchen.hooktool.hook.IHook;
 
 /**
- * 安卓 15
+ * 安卓 15 / 安卓 16 (API 35, 36+)
  *
  * @author 焕晨HChen
  */
-@HookEntrance(targetPackage = "android", targetSdks = 35)
+@HookEntrance(targetPackage = "android", targetSdks = {35, 36}, upward = true)
 public class AndroidV extends HCBase {
     @Override
     public void init() {

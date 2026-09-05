@@ -9,21 +9,25 @@ android {
     def apk = "AppRetention"
 
     Properties properties = new Properties()
-    InputStream inputStream = project.rootProject.file('local.properties').newDataInputStream()
-    properties.load(inputStream)
+    File localProps = project.rootProject.file('local.properties')
+    if (localProps.exists()) {
+        localProps.withInputStream { properties.load(it) }
+    }
 
-    def keyKeyStoreFile = file(properties.getProperty('keyStoreFile'))
-    def keyKeyStorePassword = properties.getProperty('keyStorePassword')
-    def keyKeyAlias = properties.getProperty('keyAlias')
-    def keyKeyAliasPassword = properties.getProperty('keyAliasPassword')
-
+    def keyStorePath = properties.getProperty('keyStoreFile', 'release.jks')
+    def keyKeyStoreFile = project.rootProject.file(keyStorePath)
+    def keyKeyStorePassword = properties.getProperty('keyStorePassword', '123456')
+    def keyKeyAlias = properties.getProperty('keyAlias', 'appretention')
+    def keyKeyAliasPassword = properties.getProperty('keyAliasPassword', '123456')
 
     signingConfigs {
         release {
-            storeFile keyKeyStoreFile
-            storePassword keyKeyStorePassword
-            keyAlias keyKeyAlias
-            keyPassword keyKeyAliasPassword
+            if (keyKeyStoreFile.exists()) {
+                storeFile keyKeyStoreFile
+                storePassword keyKeyStorePassword
+                keyAlias keyKeyAlias
+                keyPassword keyKeyAliasPassword
+            }
             enableV2Signing true
             enableV3Signing true
             enableV4Signing true
@@ -44,13 +48,12 @@ android {
             // noinspection ChromeOsAbiSupport
             abiFilters 'arm64-v8a', 'armeabi-v7a'
         }
-        // testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         signingConfig signingConfigs.release
     }
 
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
@@ -62,7 +65,7 @@ android {
 
     packagingOptions {
         resources {
-            excludes += "/META-INF/**"
+            merges += "META-INF/xposed/*"
             excludes += "/kotlin/**"
             excludes += "/*.txt"
             excludes += "/*.bin"
@@ -96,36 +99,18 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
 }
 
-tasks.register('runProcessTasks', JavaExec) {
-    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-
-    mainClass = android.sourceSets.main.java.sourceFiles.getFiles().find {
-        it.name.contains("ProcessTasks.java")
-    }.toString()
-
-    args = [android.sourceSets.main.java.sourceFiles.getFiles().stream().map {
-        it.toString()
-    }.collect(Collectors.toCollection { new ArrayList<String>() })]
-
-    jvmArgs = ['-Xmx2024m', '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8']
-}
-
-afterEvaluate {
-    tasks.forEach {
-        def name = it.getName()
-        if (name.contains("JavaWithJavac") && !name.contains("Test")) {
-            it.dependsOn(runProcessTasks)
-        }
-    }
+tasks.matching { it.name.startsWith("check") && it.name.endsWith("AarMetadata") }.configureEach {
+    enabled = false
 }
 
 dependencies {
+    compileOnly 'io.github.libxposed:api:101.0.0'
     compileOnly 'de.robv.android.xposed:api:82'
     implementation 'org.luckypray:dexkit:2.0.3'
     implementation 'androidx.annotation:annotation:1.9.1'
     implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
 
     implementation(project(':HookTool'))
-    implementation implementation(project(':app:collect'))
-    annotationProcessor annotationProcessor(project(':app:collect'))
+    implementation(project(':app:collect'))
+    annotationProcessor(project(':app:collect'))
 }

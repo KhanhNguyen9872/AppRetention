@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="hook_app">
+        <item>system</item>
         <item>android</item>
         <item>com.miui.powerkeeper</item>
         <item>com.oplus.athena</item>

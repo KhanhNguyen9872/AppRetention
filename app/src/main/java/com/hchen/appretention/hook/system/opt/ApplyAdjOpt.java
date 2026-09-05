@@ -45,8 +45,8 @@ import static com.hchen.hooktool.core.CoreTool.findMethod;
 import static com.hchen.hooktool.core.CoreTool.getField;
 import static com.hchen.hooktool.core.CoreTool.hook;
 import static com.hchen.hooktool.core.CoreTool.hookMethod;
-import static com.hchen.hooktool.log.XposedLog.logD;
-import static com.hchen.hooktool.log.XposedLog.logW;
+import static com.hchen.appretention.log.XposedLog.logD;
+import static com.hchen.appretention.log.XposedLog.logW;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -60,7 +60,7 @@ import androidx.annotation.NonNull;
 
 import com.hchen.appretention.data.field.SystemField;
 import com.hchen.hooktool.hook.IHook;
-import com.hchen.hooktool.log.XposedLog;
+import com.hchen.appretention.log.XposedLog;
 import com.hchen.hooktool.utils.SystemPropTool;
 
 import java.lang.reflect.Constructor;
