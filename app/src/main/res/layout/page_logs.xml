@@ -7,45 +7,95 @@
     android:background="@color/bg_dark"
     android:padding="16dp">
 
-    <!-- Top Action Bar -->
+    <!-- Top Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:orientation="vertical"
+        android:layout_marginBottom="8dp">
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="@string/title_logs_header"
             android:textColor="@color/text_title"
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCopyLog"
-            style="@style/Widget.Material3.Button.TextButton"
+        <TextView
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="@string/btn_copy_log"
-            android:textColor="@color/primary_accent"
-            app:icon="@drawable/ic_copy"
-            app:iconSize="14dp"
-            app:iconTint="@color/primary_accent" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnClearLog"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="@string/btn_clear_log"
-            android:textColor="@color/accent_red"
-            app:icon="@drawable/ic_kill"
-            app:iconSize="14dp"
-            app:iconTint="@color/accent_red" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/desc_logs_header"
+            android:textColor="@color/text_body"
+            android:textSize="12sp" />
     </LinearLayout>
+
+    <!-- Action Toolbar (Horizontal scroll for responsiveness) -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRefreshLog"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="8dp"
+                android:text="@string/btn_refresh_log"
+                android:textColor="@color/primary_accent"
+                android:textSize="12sp"
+                app:icon="@drawable/ic_refresh"
+                app:iconSize="14dp"
+                app:iconTint="@color/primary_accent" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveLog"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="8dp"
+                android:text="@string/btn_save_log"
+                android:textColor="@color/accent_green"
+                android:textSize="12sp"
+                app:icon="@drawable/ic_save"
+                app:iconSize="14dp"
+                app:iconTint="@color/accent_green" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCopyLog"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginEnd="8dp"
+                android:text="@string/btn_copy_log"
+                android:textColor="@color/text_body"
+                android:textSize="12sp"
+                app:icon="@drawable/ic_copy"
+                app:iconSize="14dp"
+                app:iconTint="@color/text_body" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnClearLog"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:text="@string/btn_clear_log"
+                android:textColor="@color/accent_red"
+                android:textSize="12sp"
+                app:icon="@drawable/ic_kill"
+                app:iconSize="14dp"
+                app:iconTint="@color/accent_red" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <!-- Terminal Log Console Card -->
     <com.google.android.material.card.MaterialCardView
@@ -58,6 +108,7 @@
         app:cardCornerRadius="14dp">
 
         <ScrollView
+            android:id="@+id/scrollLogContent"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fillViewport="true">

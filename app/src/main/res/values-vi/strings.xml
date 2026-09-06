@@ -132,4 +132,11 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="badge_proc_keep_alive">GIỮ NỀN</string>
     <string name="badge_proc_restricted">CẤM NỀN</string>
 
+
+    <string name="desc_logs_header">Theo dõi tiến trình ngầm, sự kiện hook và tối ưu ADJ thời gian thực.</string>
+    <string name="btn_save_log">Lưu log</string>
+    <string name="btn_refresh_log">Làm mới</string>
+    <string name="toast_log_saved">Đã lưu nhật ký vào: %s</string>
+    <string name="toast_log_empty">Không có nhật ký nào để lưu</string>
+    <string name="title_share_log">Chia sẻ nhật ký AppRetention</string>
 </resources>

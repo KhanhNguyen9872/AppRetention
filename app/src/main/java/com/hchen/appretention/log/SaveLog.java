@@ -127,26 +127,33 @@ public class SaveLog {
     private static boolean createFileIfNeed(String fileName) {
         LogFileStateData data = mLogFileStateDataMap.get(fileName);
         if (data != null && data.isCreatedFile) return true;
-        LOG_FILE_FULL_PATH = LOG_FILE_PATH + fileName + ".log";
+        String fullPath = LOG_FILE_PATH + fileName + ".log";
         data = new LogFileStateData();
+        data.mFilePath = fullPath;
 
-        File file = new File(LOG_FILE_FULL_PATH);
+        File file = new File(fullPath);
         File path = file.getParentFile();
         if (path == null) return false;
         try {
             if (!path.exists()) {
                 if (!path.mkdirs()) {
-                    logENoSave(TAG, "Create log dirs failed! Path: " + LOG_FILE_FULL_PATH);
+                    logENoSave(TAG, "Create log dirs failed! Path: " + fullPath);
                     return false;
                 }
             }
+            path.setReadable(true, false);
+            path.setWritable(true, false);
+            path.setExecutable(true, false);
+
             if (!file.exists() && !file.createNewFile()) {
-                logENoSave(TAG, "Create log file failed! Path: " + LOG_FILE_FULL_PATH);
+                logENoSave(TAG, "Create log file failed! Path: " + fullPath);
                 return false;
             }
+            file.setReadable(true, false);
+            file.setWritable(true, false);
             data.isCreatedFile = true;
         } catch (IOException e) {
-            logENoSave(TAG, "Create log file failed! Path: " + LOG_FILE_FULL_PATH, e);
+            logENoSave(TAG, "Create log file failed! Path: " + fullPath, e);
             return false;
         }
         mLogFileStateDataMap.put(fileName, data);
@@ -165,11 +172,12 @@ public class SaveLog {
         if (data.isOpened) return;
         // if (data.isOpened) closeFile(key);
         try {
-            data.mWriter = new BufferedWriter(new FileWriter(LOG_FILE_FULL_PATH, true));
-            data.mReader = new BufferedReader(new FileReader(LOG_FILE_FULL_PATH));
+            String path = data.mFilePath != null ? data.mFilePath : (LOG_FILE_PATH + fileName + ".log");
+            data.mWriter = new BufferedWriter(new FileWriter(path, true));
+            data.mReader = new BufferedReader(new FileReader(path));
             data.isOpened = true;
         } catch (IOException e) {
-            logENoSave(TAG, "Open log file failed! Path: " + LOG_FILE_FULL_PATH, e);
+            logENoSave(TAG, "Open log file failed! Path: " + data.mFilePath, e);
         }
         if (shouldResetFile(fileName, logId)) {
             resetFile(fileName);
@@ -191,7 +199,7 @@ public class SaveLog {
             }
             return strings;
         } catch (IOException e) {
-            logENoSave(TAG, "Read log file failed! Path: " + LOG_FILE_FULL_PATH, e);
+            logENoSave(TAG, "Read log file failed! Path: " + data.mFilePath, e);
         }
         return null;
     }
@@ -222,6 +230,16 @@ public class SaveLog {
     }
 
     public static synchronized void saveLogContent(String tag, String log) {
+        tag = redirectFileName(tag);
+        String formatLog = formatLog(log);
+
+        // If in system_server (targetPackage is "android"), write directly!
+        if ("android".equals(HCData.getTargetPackageName())) {
+            openFile(tag, getRandomNumber());
+            writeFile(tag, formatLog);
+            return;
+        }
+
         LogContentData[] logContentDatas = updateLogContent(tag, log);
         if (!isWaitingSystemBootCompleted && !isWaitingLogServiceBootCompleted) {
             pushWithAsyncContext(context -> {
@@ -479,52 +497,29 @@ public class SaveLog {
     }
 
     public static boolean isUserUnlockedCompeted() {
-        return TRUE.equals(SystemPropTool.getProp(USER_UNLOCKED_COMPLETED_PROP, FALSE));
+        return DeviceTool.isBootCompleted() || TRUE.equals(SystemPropTool.getProp(USER_UNLOCKED_COMPLETED_PROP, FALSE));
     }
 
     private static void waitSystemBootCompletedIfNeed() {
-        if (!DeviceTool.isBootCompleted() || !isUserUnlockedCompeted()) {
-            isWaitingSystemBootCompleted = true;
-            isWaitingLogServiceBootCompleted = true;
-            Executors.newSingleThreadExecutor().submit(() -> {
-                while (!DeviceTool.isBootCompleted()) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ignore) {
-                    }
-                }
-                isWaitingSystemBootCompleted = false;
-
-                int maxWhileCount = 10;
-                while (maxWhileCount-- > 0) {
-                    try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException ignore) {
-                    }
-                    if (isUserUnlockedCompeted())
-                        break;
-                }
-
-                AndroidLog.logI(TAG, "User unlocked!!");
-
-                pushWithAsyncContext(context -> {
-                    int maxWhileCount1 = 3;
-                    while (maxWhileCount1-- > 0) {
-                        if (isLogServiceBootCompleted(context)) {
-                            flushLog(context);
-                            isWaitingLogServiceBootCompleted = false;
-                            break;
-                        }
-                        try {
-                            Thread.sleep(10000);
-                        } catch (InterruptedException ignore) {
-                        }
-                    }
-                });
-            });
-        } else {
+        if (DeviceTool.isBootCompleted()) {
+            isWaitingSystemBootCompleted = false;
+            isWaitingLogServiceBootCompleted = false;
             pushWithAsyncContext(SaveLog::flushLog);
+            return;
         }
+        isWaitingSystemBootCompleted = true;
+        isWaitingLogServiceBootCompleted = true;
+        Executors.newSingleThreadExecutor().submit(() -> {
+            while (!DeviceTool.isBootCompleted()) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignore) {
+                }
+            }
+            isWaitingSystemBootCompleted = false;
+            isWaitingLogServiceBootCompleted = false;
+            pushWithAsyncContext(SaveLog::flushLog);
+        });
     }
 
     private static void flushLog(Context context) {
@@ -577,6 +572,7 @@ public class SaveLog {
     }
 
     private static class LogFileStateData {
+        private String mFilePath;
         private boolean isCreatedFile = false;
         private boolean isOpened = false;
         private BufferedWriter mWriter;

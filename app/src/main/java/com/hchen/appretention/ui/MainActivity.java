@@ -1,5 +1,14 @@
 package com.hchen.appretention.ui;
 
+import android.content.ContentValues;
+import android.provider.MediaStore;
+import android.widget.ScrollView;
+import java.io.FileWriter;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import android.app.ActivityManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -136,6 +145,9 @@ public class MainActivity extends AppCompatActivity {
 
     // Tab 4: Logs UI elements
     private TextView tvLogContent;
+    private ScrollView scrollLogContent;
+    private MaterialButton btnRefreshLog;
+    private MaterialButton btnSaveLog;
     private MaterialButton btnCopyLog;
     private MaterialButton btnClearLog;
 
@@ -407,6 +419,21 @@ public class MainActivity extends AppCompatActivity {
 
         // --- Tab 4: Logs Page Initialization ---
         tvLogContent = findViewById(R.id.tvLogContent);
+        scrollLogContent = findViewById(R.id.scrollLogContent);
+
+        btnRefreshLog = findViewById(R.id.btnRefreshLog);
+        if (btnRefreshLog != null) {
+            btnRefreshLog.setOnClickListener(v -> {
+                refreshLogs();
+                Toast.makeText(this, R.string.btn_refresh_log, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        btnSaveLog = findViewById(R.id.btnSaveLog);
+        if (btnSaveLog != null) {
+            btnSaveLog.setOnClickListener(v -> saveLogToFile());
+        }
+
         btnCopyLog = findViewById(R.id.btnCopyLog);
         if (btnCopyLog != null) {
             btnCopyLog.setOnClickListener(v -> {
@@ -423,13 +450,7 @@ public class MainActivity extends AppCompatActivity {
 
         btnClearLog = findViewById(R.id.btnClearLog);
         if (btnClearLog != null) {
-            btnClearLog.setOnClickListener(v -> {
-                clearLogFiles();
-                if (tvLogContent != null) {
-                    tvLogContent.setText(R.string.placeholder_log);
-                }
-                Toast.makeText(this, R.string.toast_log_cleared, Toast.LENGTH_SHORT).show();
-            });
+            btnClearLog.setOnClickListener(v -> clearLogFiles());
         }
     }
 
@@ -1000,56 +1021,216 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshLogs() {
-        StringBuilder sb = new StringBuilder();
-        File[] candidateDirs = new File[]{
-                new File("/data/user_de/0/com.hchen.appretention/files/logs"),
-                new File(getFilesDir(), "logs"),
-                new File(getExternalFilesDir(null), "logs")
-        };
-        boolean hasLogs = false;
-        for (File logDir : candidateDirs) {
-            if (logDir.exists() && logDir.isDirectory()) {
-                File[] files = logDir.listFiles();
-                if (files != null && files.length > 0) {
-                    for (File f : files) {
-                        if (f.isFile() && f.getName().endsWith(".log")) {
-                            try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
-                                String line;
-                                while ((line = reader.readLine()) != null) {
-                                    sb.append(line).append("\n");
-                                    hasLogs = true;
-                                }
-                            } catch (Throwable ignored) {}
+        sWorkerPool.execute(() -> {
+            StringBuilder sb = new StringBuilder();
+            boolean hasLogs = false;
+
+            // 1. If root is available, ensure permissions on log files
+            if (RootTool.hasRoot()) {
+                RootTool.runCommand("chmod -R 777 /data/user_de/0/com.hchen.appretention/files/logs 2>/dev/null");
+            }
+
+            // 2. Read from candidate log files
+            File[] candidateDirs = new File[]{
+                    new File("/data/user_de/0/com.hchen.appretention/files/logs"),
+                    new File(getFilesDir(), "logs"),
+                    new File(getExternalFilesDir(null), "logs")
+            };
+
+            for (File logDir : candidateDirs) {
+                if (logDir.exists() && logDir.isDirectory()) {
+                    File[] files = logDir.listFiles();
+                    if (files != null && files.length > 0) {
+                        for (File f : files) {
+                            if (f.isFile() && f.getName().endsWith(".log")) {
+                                try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+                                    String line;
+                                    boolean fileHasContent = false;
+                                    StringBuilder fileSb = new StringBuilder();
+                                    while ((line = reader.readLine()) != null) {
+                                        fileSb.append(line).append("\n");
+                                        fileHasContent = true;
+                                    }
+                                    if (fileHasContent) {
+                                        sb.append("--- [File: ").append(f.getName()).append("] ---\n");
+                                        sb.append(fileSb);
+                                        hasLogs = true;
+                                    }
+                                } catch (Throwable ignored) {}
+                            }
                         }
                     }
                 }
             }
+
+            // Fallback: If root and files were not readable via standard Java, try root cat
+            if (!hasLogs && RootTool.hasRoot()) {
+                String catOut = RootTool.runCommand("cat /data/user_de/0/com.hchen.appretention/files/logs/*.log 2>/dev/null");
+                if (catOut != null && !catOut.trim().isEmpty()) {
+                    sb.append("--- [File Logs (Root)] ---\n").append(catOut).append("\n");
+                    hasLogs = true;
+                }
+            }
+
+            // 3. Always capture real-time system & module logcat
+            String logcatCmd = "logcat -d -v time -s AppRetention:V KillShieldOpt:V ApplyAdjOpt:V BackgroundRestrictOpt:V LogServices:V SaveLog:V ProcessScanner:V LSPosed:V Xposed:V -t 350";
+            String logcatLogs = RootTool.runCommand(logcatCmd);
+            if (logcatLogs != null && !logcatLogs.trim().isEmpty()) {
+                if (hasLogs) {
+                    sb.append("\n========================================\n");
+                    sb.append("=== [REAL-TIME SYSTEM & HOOK LOGCAT] ===\n");
+                    sb.append("========================================\n");
+                }
+                sb.append(logcatLogs.trim());
+                hasLogs = true;
+            }
+
+            final boolean finalHasLogs = hasLogs;
+            final String finalLogContent = sb.toString();
+
+            runOnUiThread(() -> {
+                if (tvLogContent != null) {
+                    if (finalHasLogs) {
+                        tvLogContent.setText(finalLogContent);
+                    } else {
+                        tvLogContent.setText(R.string.placeholder_log);
+                    }
+                }
+            });
+        });
+    }
+
+    private void saveLogToFile() {
+        if (tvLogContent == null) return;
+        String content = tvLogContent.getText().toString().trim();
+        if (content.isEmpty() || content.equals(getString(R.string.placeholder_log))) {
+            Toast.makeText(this, R.string.toast_log_empty, Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        if (tvLogContent != null) {
-            if (hasLogs) {
-                tvLogContent.setText(sb.toString());
-            } else {
-                tvLogContent.setText(R.string.placeholder_log);
+        sWorkerPool.execute(() -> {
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+            String fileName = "AppRetention_Log_" + timeStamp + ".txt";
+            boolean saved = false;
+            String savedPath = "";
+
+            // Method 1: Android 10+ MediaStore Downloads
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                try {
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                    values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
+                    values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AppRetention");
+                    Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    if (uri != null) {
+                        try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                            if (os != null) {
+                                os.write(content.getBytes(StandardCharsets.UTF_8));
+                                os.flush();
+                                saved = true;
+                                savedPath = "Download/AppRetention/" + fileName;
+                            }
+                        }
+                    }
+                } catch (Throwable ignored) {}
             }
-        }
+
+            // Method 2: Public Download directory direct file
+            if (!saved) {
+                try {
+                    File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    if (!downloadDir.exists()) downloadDir.mkdirs();
+                    File dest = new File(downloadDir, fileName);
+                    try (FileWriter writer = new FileWriter(dest)) {
+                        writer.write(content);
+                        writer.flush();
+                        saved = true;
+                        savedPath = dest.getAbsolutePath();
+                    }
+                } catch (Throwable ignored) {}
+            }
+
+            // Method 3: Root write fallback
+            if (!saved && RootTool.hasRoot()) {
+                try {
+                    File temp = new File(getCacheDir(), fileName);
+                    try (FileWriter writer = new FileWriter(temp)) {
+                        writer.write(content);
+                        writer.flush();
+                    }
+                    RootTool.runCommand("cp " + temp.getAbsolutePath() + " /sdcard/Download/" + fileName + " && chmod 666 /sdcard/Download/" + fileName);
+                    temp.delete();
+                    saved = true;
+                    savedPath = "/sdcard/Download/" + fileName;
+                } catch (Throwable ignored) {}
+            }
+
+            // Method 4: App external files fallback
+            if (!saved) {
+                try {
+                    File dest = new File(getExternalFilesDir(null), fileName);
+                    try (FileWriter writer = new FileWriter(dest)) {
+                        writer.write(content);
+                        writer.flush();
+                        saved = true;
+                        savedPath = dest.getAbsolutePath();
+                    }
+                } catch (Throwable ignored) {}
+            }
+
+            final boolean isSuccess = saved;
+            final String finalPath = savedPath;
+
+            runOnUiThread(() -> {
+                if (isSuccess) {
+                    Toast.makeText(this, getString(R.string.toast_log_saved, finalPath), Toast.LENGTH_LONG).show();
+
+                    // Offer to share the log
+                    try {
+                        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                        shareIntent.setType("text/plain");
+                        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "AppRetention Log " + timeStamp);
+                        shareIntent.putExtra(Intent.EXTRA_TEXT, content);
+                        startActivity(Intent.createChooser(shareIntent, getString(R.string.title_share_log)));
+                    } catch (Throwable ignored) {}
+                } else {
+                    Toast.makeText(this, "Không thể lưu file nhật ký!", Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
     }
 
     private void clearLogFiles() {
-        File[] candidateDirs = new File[]{
-                new File("/data/user_de/0/com.hchen.appretention/files/logs"),
-                new File(getExternalFilesDir(null), "logs"),
-                new File(getFilesDir(), "logs")
-        };
-        for (File dir : candidateDirs) {
-            if (dir.exists() && dir.isDirectory()) {
-                File[] files = dir.listFiles();
-                if (files != null) {
-                    for (File f : files) {
-                        f.delete();
+        sWorkerPool.execute(() -> {
+            File[] candidateDirs = new File[]{
+                    new File("/data/user_de/0/com.hchen.appretention/files/logs"),
+                    new File(getExternalFilesDir(null), "logs"),
+                    new File(getFilesDir(), "logs")
+            };
+            for (File dir : candidateDirs) {
+                if (dir.exists() && dir.isDirectory()) {
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        for (File f : files) {
+                            f.delete();
+                        }
                     }
                 }
             }
-        }
+            if (RootTool.hasRoot()) {
+                RootTool.runCommand("rm -rf /data/user_de/0/com.hchen.appretention/files/logs/* 2>/dev/null; logcat -c 2>/dev/null");
+            } else {
+                try {
+                    Runtime.getRuntime().exec("logcat -c");
+                } catch (Throwable ignored) {}
+            }
+
+            runOnUiThread(() -> {
+                if (tvLogContent != null) {
+                    tvLogContent.setText(R.string.placeholder_log);
+                }
+                Toast.makeText(this, R.string.toast_log_cleared, Toast.LENGTH_SHORT).show();
+            });
+        });
     }
 }

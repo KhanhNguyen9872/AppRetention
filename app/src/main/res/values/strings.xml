@@ -132,4 +132,11 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="badge_proc_keep_alive">KEEP-ALIVE</string>
     <string name="badge_proc_restricted">RESTRICTED</string>
 
+
+    <string name="desc_logs_header">Real-time daemon events, hooks, &amp; retention activities.</string>
+    <string name="btn_save_log">Save Log</string>
+    <string name="btn_refresh_log">Refresh</string>
+    <string name="toast_log_saved">Logs saved to: %s</string>
+    <string name="toast_log_empty">No logs available to save</string>
+    <string name="title_share_log">Share AppRetention Logs</string>
 </resources>

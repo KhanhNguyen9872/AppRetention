@@ -310,4 +310,35 @@ public final class RootTool {
             }
         });
     }
+
+    public static boolean hasRoot() {
+        return isRootAvailable();
+    }
+
+    public static String runCommand(String cmd) {
+        StringBuilder sb = new StringBuilder();
+        Process p = null;
+        try {
+            if (isRootAvailable()) {
+                p = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
+            } else {
+                p = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line).append("\n");
+                }
+            }
+            p.waitFor();
+        } catch (Throwable ignored) {
+        } finally {
+            if (p != null) {
+                try {
+                    p.destroy();
+                } catch (Throwable ignored) {}
+            }
+        }
+        return sb.toString();
+    }
 }

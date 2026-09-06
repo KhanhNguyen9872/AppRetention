@@ -62,4 +62,11 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="badge_proc_keep_alive">保活</string>
     <string name="badge_proc_restricted">已限制</string>
 
+
+    <string name="desc_logs_header">实时监控后台守护、Hook事件及保活状态。</string>
+    <string name="btn_save_log">保存日志</string>
+    <string name="btn_refresh_log">刷新</string>
+    <string name="toast_log_saved">日志已保存至: %s</string>
+    <string name="toast_log_empty">暂无可保存的日志</string>
+    <string name="title_share_log">分享日志</string>
 </resources>
