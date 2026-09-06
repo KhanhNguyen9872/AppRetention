@@ -34,6 +34,15 @@
         android:padding="10dp"
         android:layout_marginBottom="12dp" />
 
+    <ProgressBar
+        android:id="@+id/pbLoadingApps"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="32dp"
+        android:visibility="gone" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvAppList"
         android:layout_width="match_parent"

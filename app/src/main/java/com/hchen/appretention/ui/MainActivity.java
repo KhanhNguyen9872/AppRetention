@@ -5,12 +5,15 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,6 +47,10 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_HIBERNATION = "persist.hchen.hibernation.opt.enable";
     private static final String KEY_AUTOSTART = "persist.hchen.autostart.opt.enable";
 
+    // High-performance In-memory Caches for Instant UI Rendering
+    private static final LruCache<String, Drawable> sIconCache = new LruCache<>(150);
+    private static final LruCache<String, String> sLabelCache = new LruCache<>(250);
+
     private SharedPreferences prefs;
 
     private SwipeRefreshLayout swipeRefresh;
@@ -76,17 +83,23 @@ public class MainActivity extends AppCompatActivity {
         setupSwitches();
         refreshAll();
 
-        // Check root and notify user if settings sync via su
         new Thread(() -> {
             boolean hasRoot = RootTool.isRootAvailable();
             runOnUiThread(() -> {
                 if (hasRoot) {
-                    tvStatusBadge.setText("System Framework (LibXposed 101) • Root Active (KernelSU/Magisk)");
+                    tvStatusBadge.setText("System Framework (LibXposed 101) • Root Active");
                 } else {
-                    tvStatusBadge.setText("System Framework (LibXposed 101) • Root not detected (Read-only mode)");
+                    tvStatusBadge.setText("System Framework (LibXposed 101) • Standard Mode");
                 }
             });
         }).start();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateMemoryInfo();
+        updateVipSummary();
     }
 
     private void initViews() {
@@ -193,15 +206,19 @@ public class MainActivity extends AppCompatActivity {
                     if (pkg.contains(":")) {
                         pkg = pkg.substring(0, pkg.indexOf(':'));
                     }
-                    String label = pkg;
-                    android.graphics.drawable.Drawable icon = null;
-                    try {
-                        ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
-                        if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue; // Skip system
-                        label = pm.getApplicationLabel(appInfo).toString();
-                        icon = pm.getApplicationIcon(appInfo);
-                    } catch (Throwable ignored) {
-                        continue;
+                    String label = sLabelCache.get(pkg);
+                    Drawable icon = sIconCache.get(pkg);
+                    if (label == null || icon == null) {
+                        try {
+                            ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
+                            if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue; // Skip system
+                            label = pm.getApplicationLabel(appInfo).toString();
+                            icon = pm.getApplicationIcon(appInfo);
+                            sLabelCache.put(pkg, label);
+                            sIconCache.put(pkg, icon);
+                        } catch (Throwable ignored) {
+                            continue;
+                        }
                     }
 
                     int adj = pi.adj;
@@ -218,13 +235,18 @@ public class MainActivity extends AppCompatActivity {
                         for (ActivityManager.RunningAppProcessInfo info : running) {
                             if (info.uid < 10000) continue;
                             String pkg = (info.pkgList != null && info.pkgList.length > 0) ? info.pkgList[0] : info.processName;
-                            String label = pkg;
-                            android.graphics.drawable.Drawable icon = null;
-                            try {
-                                ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
-                                label = pm.getApplicationLabel(appInfo).toString();
-                                icon = pm.getApplicationIcon(appInfo);
-                            } catch (Throwable ignored) {}
+                            String label = sLabelCache.get(pkg);
+                            Drawable icon = sIconCache.get(pkg);
+                            if (label == null || icon == null) {
+                                try {
+                                    ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
+                                    label = pm.getApplicationLabel(appInfo).toString();
+                                    icon = pm.getApplicationIcon(appInfo);
+                                    sLabelCache.put(pkg, label);
+                                    sIconCache.put(pkg, icon);
+                                } catch (Throwable ignored) {}
+                            }
+                            if (label == null) label = pkg;
                             int estimatedAdj = vipSet.contains(pkg) ? 200 : (200 + (items.size() * 5));
                             items.add(new ProcessItem(label, pkg, info.pid, estimatedAdj, icon));
                         }
@@ -287,33 +309,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showVipAppsDialog() {
-        PackageManager pm = getPackageManager();
-        List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-        Set<String> currentVips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
-
-        List<AppItem> appItems = new ArrayList<>();
-        for (ApplicationInfo ai : installed) {
-            if ((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue; // Skip system
-            if (getPackageName().equals(ai.packageName)) continue;
-
-            String label = pm.getApplicationLabel(ai).toString();
-            android.graphics.drawable.Drawable icon = pm.getApplicationIcon(ai);
-            boolean isVip = currentVips.contains(ai.packageName);
-            appItems.add(new AppItem(label, ai.packageName, icon, isVip));
-        }
-
-        appItems.sort((a, b) -> {
-            if (a.isVip != b.isVip) return a.isVip ? -1 : 1;
-            return a.appName.compareToIgnoreCase(b.appName);
-        });
-
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_vip_apps, null);
         RecyclerView rv = dialogView.findViewById(R.id.rvAppList);
+        ProgressBar pb = dialogView.findViewById(R.id.pbLoadingApps);
+        EditText etSearch = dialogView.findViewById(R.id.etSearchApp);
+
         rv.setLayoutManager(new LinearLayoutManager(this));
+        rv.setVisibility(View.GONE);
+        pb.setVisibility(View.VISIBLE);
+
+        List<AppItem> appItems = new ArrayList<>();
         AppListAdapter adapter = new AppListAdapter(appItems);
         rv.setAdapter(adapter);
 
-        EditText etSearch = dialogView.findViewById(R.id.etSearchApp);
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -329,6 +337,48 @@ public class MainActivity extends AppCompatActivity {
             .setView(dialogView)
             .setCancelable(true)
             .create();
+
+        // Async Background App Loader to prevent UI stutter
+        new Thread(() -> {
+            PackageManager pm = getPackageManager();
+            List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            Set<String> currentVips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
+
+            List<AppItem> loadedList = new ArrayList<>();
+            for (ApplicationInfo ai : installed) {
+                if ((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+                if (getPackageName().equals(ai.packageName)) continue;
+
+                String label = sLabelCache.get(ai.packageName);
+                Drawable icon = sIconCache.get(ai.packageName);
+                if (label == null || icon == null) {
+                    try {
+                        label = pm.getApplicationLabel(ai).toString();
+                        icon = pm.getApplicationIcon(ai);
+                        sLabelCache.put(ai.packageName, label);
+                        sIconCache.put(ai.packageName, icon);
+                    } catch (Throwable ignored) {
+                        continue;
+                    }
+                }
+
+                boolean isVip = currentVips.contains(ai.packageName);
+                loadedList.add(new AppItem(label, ai.packageName, icon, isVip));
+            }
+
+            loadedList.sort((a, b) -> {
+                if (a.isVip != b.isVip) return a.isVip ? -1 : 1;
+                return a.appName.compareToIgnoreCase(b.appName);
+            });
+
+            runOnUiThread(() -> {
+                appItems.clear();
+                appItems.addAll(loadedList);
+                adapter.filter(etSearch.getText() != null ? etSearch.getText().toString() : "");
+                pb.setVisibility(View.GONE);
+                rv.setVisibility(View.VISIBLE);
+            });
+        }).start();
 
         dialogView.findViewById(R.id.btnCancelVip).setOnClickListener(v -> dialog.dismiss());
         dialogView.findViewById(R.id.btnSaveVip).setOnClickListener(v -> {

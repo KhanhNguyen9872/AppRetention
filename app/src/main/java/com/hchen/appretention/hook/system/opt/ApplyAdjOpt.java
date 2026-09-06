@@ -386,9 +386,12 @@ public class ApplyAdjOpt {
             if (info != null)
                 this.packageName = info.packageName;
 
-            this.uid = (int) Optional.ofNullable(getField(pr, SystemField.uid)).orElse(-1);
-            this.isolated = (boolean) Optional.ofNullable(getField(pr, SystemField.isolated)).orElse(false);
-            this.isSdkSandbox = (boolean) Optional.ofNullable(getField(pr, SystemField.isSdkSandbox)).orElse(false);
+            Object uidObj = getField(pr, SystemField.uid);
+            this.uid = (uidObj instanceof Integer) ? (Integer) uidObj : -1;
+            Object isoObj = getField(pr, SystemField.isolated);
+            this.isolated = (isoObj instanceof Boolean) ? (Boolean) isoObj : false;
+            Object sbObj = getField(pr, SystemField.isSdkSandbox);
+            this.isSdkSandbox = (sbObj instanceof Boolean) ? (Boolean) sbObj : false;
             this.isMainProcess = Objects.equals(this.processName, this.packageName);
             this.mState = getField(pr, SystemField.mState);
         }

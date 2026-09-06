@@ -57,7 +57,8 @@ public final class RootTool {
         if (!isRootAvailable()) return list;
 
         try {
-            String script = "for d in /proc/[0-9]*; do [ -f \"$d/cmdline\" ] && [ -f \"$d/oom_score_adj\" ] && echo \"${d##*/}:$(tr '\\0' ' ' < \"$d/cmdline\" | awk '{print $1}'):$(cat \"$d/oom_score_adj\")\"; done";
+            // Highly optimized single-pass scanner using shell built-in read
+            String script = "for d in /proc/[0-9]*; do [ -r \"$d/oom_score_adj\" ] && [ -r \"$d/cmdline\" ] || continue; read -r c < \"$d/cmdline\" || continue; read -r a < \"$d/oom_score_adj\" || continue; [ -n \"$c\" ] && echo \"${d##*/}:$c:$a\"; done";
             Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", script});
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line;
