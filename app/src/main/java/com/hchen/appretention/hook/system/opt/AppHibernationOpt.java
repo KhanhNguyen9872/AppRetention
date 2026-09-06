@@ -32,15 +32,25 @@ public final class AppHibernationOpt {
 
         for (Method method : serviceClass.getDeclaredMethods()) {
             String name = method.getName();
+            Class<?> retType = method.getReturnType();
+
             if ("setHibernatingGlobally".equals(name) || "setHibernatingForUser".equals(name)) {
                 hook(method, new IHook() {
                     @Override
                     public void before() {
-                        // If system tries to set hibernating = true, cancel it
-                        Object val = getArg(getArgs().length - 1);
-                        if (Boolean.TRUE.equals(val)) {
-                            XposedLog.logI(TAG, "Prevented app hibernation for: " + getArg(0));
-                            returnNull();
+                        Object[] args = getArgs();
+                        if (args != null && args.length > 0) {
+                            Object val = args[args.length - 1];
+                            if (Boolean.TRUE.equals(val)) {
+                                XposedLog.logI(TAG, "Prevented app hibernation for: " + getArg(0));
+                                if (retType == void.class) {
+                                    returnNull();
+                                } else if (retType == boolean.class || retType == Boolean.class) {
+                                    setResult(false);
+                                } else {
+                                    returnNull();
+                                }
+                            }
                         }
                     }
                 });
@@ -48,7 +58,13 @@ public final class AppHibernationOpt {
                 hook(method, new IHook() {
                     @Override
                     public void before() {
-                        setResult(false);
+                        if (retType == boolean.class || retType == Boolean.class) {
+                            setResult(false);
+                        } else if (retType == int.class || retType == Integer.class) {
+                            setResult(0);
+                        } else {
+                            returnNull();
+                        }
                     }
                 });
             }

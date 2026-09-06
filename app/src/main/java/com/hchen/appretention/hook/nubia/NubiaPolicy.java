@@ -45,6 +45,19 @@ public class NubiaPolicy extends HCBase {
         new NubiaPolicy().init();
     }
 
+    private static void handleSafeReturn(Method method, IHook hook) {
+        Class<?> retType = method.getReturnType();
+        if (retType == void.class) {
+            hook.returnNull();
+        } else if (retType == boolean.class || retType == Boolean.class) {
+            hook.setResult(false);
+        } else if (retType == int.class || retType == Integer.class) {
+            hook.setResult(0);
+        } else {
+            hook.returnNull();
+        }
+    }
+
     private void hookNubiaProcessManager() {
         String[] candidateClasses = new String[]{
             "cn.nubia.server.appmag.ProcessManager",
@@ -63,7 +76,7 @@ public class NubiaPolicy extends HCBase {
                         @Override
                         public void before() {
                             XposedLog.logI(TAG, "Intercepted Nubia clean/kill method: " + method.getName());
-                            returnNull();
+                            handleSafeReturn(method, this);
                         }
                     });
                 }
@@ -89,7 +102,7 @@ public class NubiaPolicy extends HCBase {
                         @Override
                         public void before() {
                             XposedLog.logI(TAG, "Intercepted Nubia SmartEngine method: " + method.getName());
-                            returnNull();
+                            handleSafeReturn(method, this);
                         }
                     });
                 }
@@ -114,7 +127,7 @@ public class NubiaPolicy extends HCBase {
                         @Override
                         public void before() {
                             XposedLog.logI(TAG, "Intercepted Nubia Freezer kill method: " + method.getName());
-                            returnNull();
+                            handleSafeReturn(method, this);
                         }
                     });
                 }

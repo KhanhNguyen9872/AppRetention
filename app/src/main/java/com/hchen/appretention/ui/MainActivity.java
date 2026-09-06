@@ -36,7 +36,7 @@ import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
     private static final String PREF_NAME = "AppRetentionConfig";
-    private static final String KEY_VIP_PACKAGES = "vip_packages";
+    private static final String KEY_VIP_PACKAGES = "persist.hchen.adj.vip_packages";
     private static final String KEY_TIERED_ADJ = "persist.hchen.adj.perceptible.enable";
     private static final String KEY_KILL_SHIELD = "persist.hchen.killshield.enable";
     private static final String KEY_DOZE = "persist.hchen.doze.opt.enable";
@@ -45,9 +45,22 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_AUTOSTART = "persist.hchen.autostart.opt.enable";
 
     private SharedPreferences prefs;
+
     private SwipeRefreshLayout swipeRefresh;
-    private TextView tvMemoryInfo, tvShieldCount, tvVipSummary, tvProcessCount, tvLogContent;
-    private MaterialSwitch switchTieredAdj, switchKillShield, switchDoze, switchNubia, switchHibernation, switchAutoStart;
+    private TextView tvStatusBadge;
+    private TextView tvMemoryInfo;
+    private TextView tvShieldCount;
+    private TextView tvProcessCount;
+    private TextView tvVipSummary;
+    private TextView tvLogContent;
+
+    private MaterialSwitch switchTieredAdj;
+    private MaterialSwitch switchKillShield;
+    private MaterialSwitch switchDoze;
+    private MaterialSwitch switchNubia;
+    private MaterialSwitch switchHibernation;
+    private MaterialSwitch switchAutoStart;
+
     private RecyclerView rvProcesses;
     private ProcessAdapter processAdapter;
     private final List<ProcessItem> processList = new ArrayList<>();
@@ -62,14 +75,29 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         setupSwitches();
         refreshAll();
+
+        // Check root and notify user if settings sync via su
+        new Thread(() -> {
+            boolean hasRoot = RootTool.isRootAvailable();
+            runOnUiThread(() -> {
+                if (hasRoot) {
+                    tvStatusBadge.setText("System Framework (LibXposed 101) • Root Active (KernelSU/Magisk)");
+                } else {
+                    tvStatusBadge.setText("System Framework (LibXposed 101) • Root not detected (Read-only mode)");
+                }
+            });
+        }).start();
     }
 
     private void initViews() {
         swipeRefresh = findViewById(R.id.swipeRefresh);
+        swipeRefresh.setOnRefreshListener(this::refreshAll);
+
+        tvStatusBadge = findViewById(R.id.tvStatusBadge);
         tvMemoryInfo = findViewById(R.id.tvMemoryInfo);
         tvShieldCount = findViewById(R.id.tvShieldCount);
-        tvVipSummary = findViewById(R.id.tvVipSummary);
         tvProcessCount = findViewById(R.id.tvProcessCount);
+        tvVipSummary = findViewById(R.id.tvVipSummary);
         tvLogContent = findViewById(R.id.tvLogContent);
 
         switchTieredAdj = findViewById(R.id.switchTieredAdj);
@@ -83,8 +111,6 @@ public class MainActivity extends AppCompatActivity {
         rvProcesses.setLayoutManager(new LinearLayoutManager(this));
         processAdapter = new ProcessAdapter(processList);
         rvProcesses.setAdapter(processAdapter);
-
-        swipeRefresh.setOnRefreshListener(this::refreshAll);
 
         MaterialButton btnManageVip = findViewById(R.id.btnManageVip);
         btnManageVip.setOnClickListener(v -> showVipAppsDialog());
@@ -110,10 +136,7 @@ public class MainActivity extends AppCompatActivity {
         sw.setChecked(val);
         sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.edit().putBoolean(key, isChecked).apply();
-            try {
-                SystemPropTool.setProp(key, String.valueOf(isChecked));
-            } catch (Throwable ignored) {
-            }
+            RootTool.setProp(key, String.valueOf(isChecked));
         });
     }
 
@@ -149,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
         int discount = totalGb >= 15 ? 5 : (totalGb >= 11 ? 4 : 3);
 
         tvMemoryInfo.setText(String.format("RAM: %d GB Total • %d GB Available (LMKD Tuning: %dx)", totalGb, availGb, discount));
-        tvShieldCount.setText("KillShield Status: Active & Monitoring");
+        tvShieldCount.setText("KillShield Status: Active & Shielding Background Kills");
     }
 
     private void updateVipSummary() {
@@ -158,40 +181,64 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshRunningProcesses() {
-        processList.clear();
-        ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        PackageManager pm = getPackageManager();
-        if (am == null || pm == null) return;
+        new Thread(() -> {
+            List<ProcessItem> items = new ArrayList<>();
+            PackageManager pm = getPackageManager();
+            Set<String> vipSet = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
 
-        List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
-        if (running == null) return;
+            if (RootTool.isRootAvailable()) {
+                List<RootTool.ProcessInfo> rootProcs = RootTool.getRunningProcesses();
+                for (RootTool.ProcessInfo pi : rootProcs) {
+                    String pkg = pi.processName;
+                    if (pkg.contains(":")) {
+                        pkg = pkg.substring(0, pkg.indexOf(':'));
+                    }
+                    String label = pkg;
+                    android.graphics.drawable.Drawable icon = null;
+                    try {
+                        ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
+                        if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue; // Skip system
+                        label = pm.getApplicationLabel(appInfo).toString();
+                        icon = pm.getApplicationIcon(appInfo);
+                    } catch (Throwable ignored) {
+                        continue;
+                    }
 
-        Set<String> vipSet = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
-        int count = 0;
-
-        for (ActivityManager.RunningAppProcessInfo info : running) {
-            if (info.uid < 10000) continue; // Skip system processes
-            count++;
-
-            String pkg = (info.pkgList != null && info.pkgList.length > 0) ? info.pkgList[0] : info.processName;
-            String name = pkg;
-            android.graphics.drawable.Drawable icon = null;
-            try {
-                ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
-                name = pm.getApplicationLabel(appInfo).toString();
-                icon = pm.getApplicationIcon(appInfo);
-            } catch (Throwable ignored) {
+                    int adj = pi.adj;
+                    if (vipSet.contains(pkg)) {
+                        adj = 200; // VIP pinned
+                    }
+                    items.add(new ProcessItem(label, pi.processName, pi.pid, adj, icon));
+                }
+            } else {
+                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) {
+                    List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
+                    if (running != null) {
+                        for (ActivityManager.RunningAppProcessInfo info : running) {
+                            if (info.uid < 10000) continue;
+                            String pkg = (info.pkgList != null && info.pkgList.length > 0) ? info.pkgList[0] : info.processName;
+                            String label = pkg;
+                            android.graphics.drawable.Drawable icon = null;
+                            try {
+                                ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
+                                label = pm.getApplicationLabel(appInfo).toString();
+                                icon = pm.getApplicationIcon(appInfo);
+                            } catch (Throwable ignored) {}
+                            int estimatedAdj = vipSet.contains(pkg) ? 200 : (200 + (items.size() * 5));
+                            items.add(new ProcessItem(label, pkg, info.pid, estimatedAdj, icon));
+                        }
+                    }
+                }
             }
 
-            // Estimate ADJ: VIP apps are 200; top running are 200-245; others 500+
-            int estimatedAdj = vipSet.contains(pkg) ? 200 : (200 + (processList.size() * 5));
-            if (estimatedAdj > 600) estimatedAdj = 600;
-
-            processList.add(new ProcessItem(name, pkg, info.pid, estimatedAdj, icon));
-        }
-
-        tvProcessCount.setText(count + " user apps active");
-        processAdapter.notifyDataSetChanged();
+            runOnUiThread(() -> {
+                processList.clear();
+                processList.addAll(items);
+                tvProcessCount.setText(processList.size() + " apps active");
+                processAdapter.notifyDataSetChanged();
+            });
+        }).start();
     }
 
     private void refreshLogs() {
@@ -207,30 +254,34 @@ public class MainActivity extends AppCompatActivity {
                     try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
-                            if (line.contains("KillShield") || line.contains("Blocked") || line.contains("Nubia") || line.contains("Adj")) {
-                                sb.append(line).append("\n");
-                            }
+                            sb.append(line).append("\n");
                         }
                     } catch (Throwable ignored) {
                     }
                 }
             }
         }
-        if (sb.length() == 0) {
-            sb.append("[KillShield] Monitoring active background apps.\n")
-              .append("[ApplyAdjOpt] Tiered ADJ clamping enabled for top 8 apps.\n")
-              .append("[DozeOpt] Background network whitelist active.\n")
-              .append("[NubiaPolicy] GameSpace memory purgers neutralized.");
+
+        if (sb.length() > 0) {
+            tvLogContent.setText(sb.toString());
+        } else {
+            tvLogContent.setText("No Hook logs recorded yet. Logs will appear here as Android system services run.");
         }
-        tvLogContent.setText(sb.toString());
     }
 
     private void clearLogFiles() {
-        File logDir = new File(getExternalFilesDir(null), "logs");
-        if (logDir.exists()) {
-            File[] files = logDir.listFiles();
-            if (files != null) {
-                for (File f : files) f.delete();
+        File[] dirs = new File[]{
+            new File(getExternalFilesDir(null), "logs"),
+            new File(getFilesDir(), "logs")
+        };
+        for (File dir : dirs) {
+            if (dir.exists() && dir.isDirectory()) {
+                File[] files = dir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        f.delete();
+                    }
+                }
             }
         }
     }
@@ -288,16 +339,12 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             prefs.edit().putStringSet(KEY_VIP_PACKAGES, newVips).apply();
-            // Sync to property for instant framework hook pickup
             String joined = String.join(",", newVips);
-            try {
-                SystemPropTool.setProp("persist.hchen.adj.vip_packages", joined);
-            } catch (Throwable ignored) {
-            }
+            RootTool.setProp("persist.hchen.adj.vip_packages", joined);
             updateVipSummary();
-            Toast.makeText(this, "Saved " + newVips.size() + " VIP apps!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Pinned " + newVips.size() + " VIP apps (ADJ 200)", Toast.LENGTH_SHORT).show();
             dialog.dismiss();
-            refreshAll();
+            refreshRunningProcesses();
         });
 
         dialog.show();

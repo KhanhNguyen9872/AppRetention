@@ -37,10 +37,15 @@ public final class AutoStartOpt {
             for (Method m : clazz.getDeclaredMethods()) {
                 String name = m.getName().toLowerCase();
                 if (name.contains("autorun") || name.contains("autostart") || name.contains("bootallow")) {
+                    Class<?> retType = m.getReturnType();
                     hook(m, new IHook() {
                         @Override
                         public void before() {
-                            setResult(true);
+                            if (retType == boolean.class || retType == Boolean.class) {
+                                setResult(true);
+                            } else if (retType == int.class || retType == Integer.class) {
+                                setResult(1);
+                            }
                             XposedLog.logD(TAG, "Granted auto-start privilege via " + m.getName());
                         }
                     });

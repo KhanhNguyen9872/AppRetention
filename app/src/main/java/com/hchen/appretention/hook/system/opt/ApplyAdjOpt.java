@@ -213,19 +213,27 @@ public class ApplyAdjOpt {
         );
     }
 
-        private static HashSet<String> getVipPackages() {
-        HashSet<String> vipSet = new HashSet<>();
-        try {
-            String propVip = SystemPropTool.getProp("persist.hchen.adj.vip_packages", "");
-            if (!propVip.isEmpty()) {
-                for (String p : propVip.split(",")) {
-                    String trimmed = p.trim();
-                    if (!trimmed.isEmpty()) vipSet.add(trimmed);
+        private static long lastVipCheckTime = 0;
+    private static HashSet<String> cachedVipSet = new HashSet<>();
+
+    private static synchronized HashSet<String> getVipPackages() {
+        long now = System.currentTimeMillis();
+        if (now - lastVipCheckTime > 3000) {
+            lastVipCheckTime = now;
+            HashSet<String> vipSet = new HashSet<>();
+            try {
+                String propVip = SystemPropTool.getProp("persist.hchen.adj.vip_packages", "");
+                if (!propVip.isEmpty()) {
+                    for (String p : propVip.split(",")) {
+                        String trimmed = p.trim();
+                        if (!trimmed.isEmpty()) vipSet.add(trimmed);
+                    }
                 }
+                cachedVipSet = vipSet;
+            } catch (Throwable ignored) {
             }
-        } catch (Throwable ignored) {
         }
-        return vipSet;
+        return cachedVipSet;
     }
 
     private static boolean isEnabled() {

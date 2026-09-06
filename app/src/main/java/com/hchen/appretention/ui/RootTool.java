@@ -1,0 +1,82 @@
+package com.hchen.appretention.ui;
+
+import com.hchen.hooktool.utils.SystemPropTool;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class RootTool {
+    private static volatile Boolean sHasRoot = null;
+
+    private RootTool() {}
+
+    public static boolean isRootAvailable() {
+        if (sHasRoot != null) return sHasRoot;
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line = reader.readLine();
+                sHasRoot = (line != null && line.contains("uid=0"));
+            }
+            p.waitFor();
+        } catch (Throwable e) {
+            sHasRoot = false;
+        }
+        return Boolean.TRUE.equals(sHasRoot);
+    }
+
+    public static void setProp(String key, String value) {
+        new Thread(() -> {
+            try {
+                SystemPropTool.setProp(key, value);
+            } catch (Throwable ignored) {}
+
+            try {
+                Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "setprop " + key + " \"" + value + "\""});
+                p.waitFor();
+            } catch (Throwable ignored) {}
+        }).start();
+    }
+
+    public static class ProcessInfo {
+        public final int pid;
+        public final String processName;
+        public final int adj;
+
+        public ProcessInfo(int pid, String processName, int adj) {
+            this.pid = pid;
+            this.processName = processName;
+            this.adj = adj;
+        }
+    }
+
+    public static List<ProcessInfo> getRunningProcesses() {
+        List<ProcessInfo> list = new ArrayList<>();
+        if (!isRootAvailable()) return list;
+
+        try {
+            String script = "for d in /proc/[0-9]*; do [ -f \"$d/cmdline\" ] && [ -f \"$d/oom_score_adj\" ] && echo \"${d##*/}:$(tr '\\0' ' ' < \"$d/cmdline\" | awk '{print $1}'):$(cat \"$d/oom_score_adj\")\"; done";
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", script});
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] parts = line.split(":", 3);
+                    if (parts.length == 3) {
+                        try {
+                            int pid = Integer.parseInt(parts[0].trim());
+                            String name = parts[1].trim();
+                            int adj = Integer.parseInt(parts[2].trim());
+                            if (!name.isEmpty() && !name.startsWith("/") && !name.startsWith("[")) {
+                                list.add(new ProcessInfo(pid, name, adj));
+                            }
+                        } catch (Throwable ignored) {}
+                    }
+                }
+            }
+            p.waitFor();
+        } catch (Throwable ignored) {}
+        return list;
+    }
+}
