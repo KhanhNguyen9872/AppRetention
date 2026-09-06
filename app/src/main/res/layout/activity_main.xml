@@ -19,7 +19,20 @@
             app:title="AppRetention"
             app:titleTextColor="@color/text_title"
             app:subtitle="Xposed API 101 • Android 16"
-            app:subtitleTextColor="@color/text_body" />
+            app:subtitleTextColor="@color/text_body">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnGithub"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="12dp"
+                app:icon="@drawable/ic_github"
+                app:iconTint="@color/text_title"
+                app:iconSize="24dp"
+                android:contentDescription="GitHub Repository" />
+        </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -39,7 +52,7 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- 1. System Status Card -->
+                <!-- 1. System Status Card (Clean & Compact, No wasted vertical space) -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -59,13 +72,14 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
-                            android:gravity="center_vertical">
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="8dp">
 
                             <TextView
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="System Status"
+                                android:text="System Framework"
                                 android:textColor="@color/text_title"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
@@ -74,7 +88,7 @@
                                 android:id="@+id/tvStatusBadge"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="● Active (API 101)"
+                                android:text="Active (API 101)"
                                 android:textColor="@color/accent_green"
                                 android:background="@drawable/bg_badge_green"
                                 android:paddingStart="10dp"
@@ -86,27 +100,217 @@
                         </LinearLayout>
 
                         <TextView
-                            android:id="@+id/tvMemoryInfo"
+                            android:id="@+id/tvModeDetail"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:text="Detecting system RAM..."
+                            android:text="Scope: android (system_server) • Root: Detecting..."
                             android:textColor="@color/text_body"
-                            android:textSize="14sp" />
+                            android:textSize="13sp" />
 
                         <TextView
                             android:id="@+id/tvShieldCount"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
-                            android:text="Shielded Kills: 0"
+                            android:text="KillShield: Active &amp; Monitoring"
                             android:textColor="@color/primary_accent"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- 2. VIP Apps Card -->
+                <!-- 2. Hardware Resource Monitor (RAM, CPU, Storage with Progress Bars) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/card_dark"
+                    app:strokeColor="@color/card_stroke"
+                    app:strokeWidth="1dp"
+                    app:cardCornerRadius="16dp"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="14dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Hardware Monitor"
+                                android:textColor="@color/text_title"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvRefreshIndicator"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Auto: 5s"
+                                android:textColor="@color/primary_accent"
+                                android:background="@color/card_inner"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:paddingTop="3dp"
+                                android:paddingBottom="3dp"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <!-- RAM Monitor -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="4dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="RAM Memory"
+                                android:textColor="@color/text_title"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvRamDetails"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="-- / -- (0%)"
+                                android:textColor="@color/accent_cyan"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <com.google.android.material.progressindicator.LinearProgressIndicator
+                            android:id="@+id/pbRam"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="100"
+                            android:progress="0"
+                            app:trackColor="@color/card_inner"
+                            app:indicatorColor="@color/accent_cyan"
+                            app:trackCornerRadius="4dp"
+                            app:trackThickness="8dp"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tvRamSubtext"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Available: -- GB • LMKD Tuning: --"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp"
+                            android:layout_marginBottom="14dp" />
+
+                        <!-- CPU Monitor -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="4dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="CPU Processor"
+                                android:textColor="@color/text_title"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvCpuDetails"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="--% Load"
+                                android:textColor="@color/accent_amber"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <com.google.android.material.progressindicator.LinearProgressIndicator
+                            android:id="@+id/pbCpu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="100"
+                            android:progress="0"
+                            app:trackColor="@color/card_inner"
+                            app:indicatorColor="@color/accent_amber"
+                            app:trackCornerRadius="4dp"
+                            app:trackThickness="8dp"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tvCpuSubtext"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Cores: -- • Real-time load from /proc/stat"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp"
+                            android:layout_marginBottom="14dp" />
+
+                        <!-- Storage Monitor -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="4dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Internal Storage"
+                                android:textColor="@color/text_title"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvStorageDetails"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="-- / -- (0%)"
+                                android:textColor="@color/primary_accent"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <com.google.android.material.progressindicator.LinearProgressIndicator
+                            android:id="@+id/pbStorage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="100"
+                            android:progress="0"
+                            app:trackColor="@color/card_inner"
+                            app:indicatorColor="@color/primary_accent"
+                            app:trackCornerRadius="4dp"
+                            app:trackThickness="8dp"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tvStorageSubtext"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Free: -- GB"
+                            android:textColor="@color/text_muted"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- 3. VIP Apps Card -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -133,10 +337,10 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
                             android:text="Apps selected here are permanently pinned at ADJ 200 (Total Kill Immunity), regardless of how many other apps are opened."
                             android:textColor="@color/text_body"
-                            android:textSize="13sp" />
+                            android:textSize="13sp"
+                            android:layout_marginTop="4dp" />
 
                         <TextView
                             android:id="@+id/tvVipSummary"
@@ -145,20 +349,19 @@
                             android:layout_marginTop="8dp"
                             android:text="Pinned: 0 apps"
                             android:textColor="@color/primary_accent"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnManageVip"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
                             android:text="Select VIP Apps"
-                            app:cornerRadius="10dp" />
+                            android:layout_marginTop="12dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- 3. Feature Switches Card -->
+                <!-- 4. Retention Controls -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -181,36 +384,36 @@
                             android:textColor="@color/text_title"
                             android:textSize="18sp"
                             android:textStyle="bold"
-                            android:layout_marginBottom="8dp" />
+                            android:layout_marginBottom="12dp" />
 
                         <!-- Switch 1: Tiered ADJ -->
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchTieredAdj"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Tiered ADJ Clamping (ADJ 200)"
+                            android:text="Tiered ADJ 200 Clamping"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Places top recent apps at ADJ 200-249 (same priority as active music playback)."
+                            android:text="Bumps top background apps to Perceptible tier (ADJ 200-245) for persistent background retention."
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
 
-                        <!-- Switch 2: Kill Shield -->
+                        <!-- Switch 2: KillShield -->
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchKillShield"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="AOSP Kill Shield"
+                            android:text="KillShield Protection"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Blocks automated broadcast timeouts, cached idle sweeps, and excessive CPU kills."
+                            android:text="Blocks automated system kills from timeout, cpu spikes, and idle sweeps while allowing manual swipe."
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
@@ -220,29 +423,29 @@
                             android:id="@+id/switchDoze"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Auto Doze &amp; Battery Exemption"
+                            android:text="Doze Mode Auto-Exemption"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Maintains background network and wakelocks when the screen is locked."
+                            android:text="Keeps network sockets, alarms, and sockets active for all background apps when screen is off."
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
 
-                        <!-- Switch 4: Nubia / RedMagic -->
+                        <!-- Switch 4: Nubia / RedMagic Policy -->
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchNubia"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="RedMagic / Nubia Policy Suppression"
+                            android:text="RedMagic / Nubia Killer Shield"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Suppresses NeoPower, SmartEngine, and GameSpace background purgers."
+                            android:text="Suppresses NeoPower, SmartEngine, and GameSpace background memory purgers on RedMagic devices."
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
@@ -280,7 +483,7 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- 4. Live Process & OOM ADJ Monitor -->
+                <!-- 5. Live Process & OOM ADJ Monitor -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -316,7 +519,7 @@
                                 android:id="@+id/tvProcessCount"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0 processes"
+                                android:text="0 apps"
                                 android:textColor="@color/text_body"
                                 android:textSize="13sp" />
                         </LinearLayout>
@@ -329,7 +532,7 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- 5. Real-Time Log Viewer -->
+                <!-- 6. Real-Time Log Viewer -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

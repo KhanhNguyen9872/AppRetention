@@ -2,11 +2,17 @@ package com.hchen.appretention.ui;
 
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.StatFs;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.LruCache;
@@ -25,6 +31,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.hchen.appretention.R;
 import com.hchen.hooktool.utils.SystemPropTool;
 
@@ -49,19 +56,34 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_HIBERNATION = "persist.hchen.hibernation.opt.enable";
     private static final String KEY_AUTOSTART = "persist.hchen.autostart.opt.enable";
 
-    // Memory-leak-free Icon Cache: caches Drawable.ConstantState, avoiding Activity Context leaks
+    // Memory-leak-free Icon Cache
     private static final LruCache<String, Drawable.ConstantState> sIconCache = new LruCache<>(150);
     private static final LruCache<String, String> sLabelCache = new LruCache<>(250);
 
-    // Controlled background worker pool
+    // Background worker thread pool
     private static final ExecutorService sWorkerPool = Executors.newFixedThreadPool(2);
 
     private SharedPreferences prefs;
 
+    // UI elements
     private SwipeRefreshLayout swipeRefresh;
     private TextView tvStatusBadge;
-    private TextView tvMemoryInfo;
+    private TextView tvModeDetail;
     private TextView tvShieldCount;
+
+    // Hardware monitor UI
+    private TextView tvRamDetails;
+    private TextView tvRamSubtext;
+    private LinearProgressIndicator pbRam;
+
+    private TextView tvCpuDetails;
+    private TextView tvCpuSubtext;
+    private LinearProgressIndicator pbCpu;
+
+    private TextView tvStorageDetails;
+    private TextView tvStorageSubtext;
+    private LinearProgressIndicator pbStorage;
+
     private TextView tvProcessCount;
     private TextView tvVipSummary;
     private TextView tvLogContent;
@@ -77,6 +99,20 @@ public class MainActivity extends AppCompatActivity {
     private ProcessAdapter processAdapter;
     private final List<ProcessItem> processList = new ArrayList<>();
 
+    // 5-second recurring auto-refresh handler
+    private final Handler mTimerHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mPeriodicRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateHardwareStats();
+            mTimerHandler.postDelayed(this, 5000);
+        }
+    };
+
+    // CPU measurement state
+    private long mLastTotalCpu = 0;
+    private long mLastIdleCpu = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,13 +124,14 @@ public class MainActivity extends AppCompatActivity {
         setupSwitches();
         refreshAll();
 
+        // Check root status
         sWorkerPool.execute(() -> {
             boolean hasRoot = RootTool.isRootAvailable();
             runOnUiThread(() -> {
                 if (hasRoot) {
-                    tvStatusBadge.setText("System Framework (LibXposed 101) • Root Active");
+                    tvModeDetail.setText("Scope: android (system_server) • Root: Active (KernelSU/Magisk)");
                 } else {
-                    tvStatusBadge.setText("System Framework (LibXposed 101) • Standard Mode");
+                    tvModeDetail.setText("Scope: android (system_server) • Root: Standard Mode");
                 }
             });
         });
@@ -103,17 +140,52 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        updateMemoryInfo();
+        mTimerHandler.removeCallbacks(mPeriodicRefreshRunnable);
+        mTimerHandler.post(mPeriodicRefreshRunnable);
         updateVipSummary();
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Prevent background battery drain when app is paused
+        mTimerHandler.removeCallbacks(mPeriodicRefreshRunnable);
+    }
+
     private void initViews() {
+        // GitHub Action Button
+        MaterialButton btnGithub = findViewById(R.id.btnGithub);
+        if (btnGithub != null) {
+            btnGithub.setOnClickListener(v -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/KhanhNguyen9872/AppRetention"));
+                    startActivity(intent);
+                } catch (Throwable t) {
+                    Toast.makeText(this, "Could not open browser", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
         swipeRefresh = findViewById(R.id.swipeRefresh);
         swipeRefresh.setOnRefreshListener(this::refreshAll);
 
         tvStatusBadge = findViewById(R.id.tvStatusBadge);
-        tvMemoryInfo = findViewById(R.id.tvMemoryInfo);
+        tvModeDetail = findViewById(R.id.tvModeDetail);
         tvShieldCount = findViewById(R.id.tvShieldCount);
+
+        // Hardware monitors
+        tvRamDetails = findViewById(R.id.tvRamDetails);
+        tvRamSubtext = findViewById(R.id.tvRamSubtext);
+        pbRam = findViewById(R.id.pbRam);
+
+        tvCpuDetails = findViewById(R.id.tvCpuDetails);
+        tvCpuSubtext = findViewById(R.id.tvCpuSubtext);
+        pbCpu = findViewById(R.id.pbCpu);
+
+        tvStorageDetails = findViewById(R.id.tvStorageDetails);
+        tvStorageSubtext = findViewById(R.id.tvStorageSubtext);
+        pbStorage = findViewById(R.id.pbStorage);
+
         tvProcessCount = findViewById(R.id.tvProcessCount);
         tvVipSummary = findViewById(R.id.tvVipSummary);
         tvLogContent = findViewById(R.id.tvLogContent);
@@ -159,38 +231,112 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshAll() {
-        updateMemoryInfo();
+        updateHardwareStats();
         updateVipSummary();
         refreshRunningProcesses();
         refreshLogs();
         swipeRefresh.setRefreshing(false);
     }
 
-    private void updateMemoryInfo() {
-        long totalRam = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader("/proc/meminfo"))) {
-            String line = br.readLine();
-            if (line != null) {
-                String[] parts = line.split("\\s+");
-                if (parts.length >= 2) {
-                    totalRam = Long.parseLong(parts[1]) * 1024L;
+    private void updateHardwareStats() {
+        sWorkerPool.execute(() -> {
+            // 1. RAM Calculation
+            long totalRam = 0;
+            try (BufferedReader br = new BufferedReader(new FileReader("/proc/meminfo"))) {
+                String line = br.readLine();
+                if (line != null) {
+                    String[] parts = line.split("\\s+");
+                    if (parts.length >= 2) {
+                        totalRam = Long.parseLong(parts[1]) * 1024L;
+                    }
+                }
+            } catch (Throwable ignored) {}
+
+            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+            if (am != null) am.getMemoryInfo(mi);
+
+            long totalRamBytes = totalRam > 0 ? totalRam : mi.totalMem;
+            long availRamBytes = mi.availMem;
+            long usedRamBytes = Math.max(0, totalRamBytes - availRamBytes);
+            int ramPercent = (int) Math.min(100, (usedRamBytes * 100) / (totalRamBytes > 0 ? totalRamBytes : 1));
+            double usedRamGb = usedRamBytes / (1024.0 * 1024.0 * 1024.0);
+            double totalRamGb = totalRamBytes / (1024.0 * 1024.0 * 1024.0);
+            double availRamGb = availRamBytes / (1024.0 * 1024.0 * 1024.0);
+            int discount = (int) Math.round(totalRamGb) >= 15 ? 5 : ((int) Math.round(totalRamGb) >= 11 ? 4 : 3);
+
+            // 2. CPU Calculation
+            int cpuPercent = readCpuUsage();
+            int cores = Runtime.getRuntime().availableProcessors();
+
+            // 3. Storage Calculation
+            File dataDir = Environment.getDataDirectory();
+            StatFs stat = new StatFs(dataDir.getPath());
+            long blockSize = stat.getBlockSizeLong();
+            long totalBlocks = stat.getBlockCountLong();
+            long availBlocks = stat.getAvailableBlocksLong();
+            long totalStorageBytes = totalBlocks * blockSize;
+            long freeStorageBytes = availBlocks * blockSize;
+            long usedStorageBytes = Math.max(0, totalStorageBytes - freeStorageBytes);
+            int storagePercent = (int) Math.min(100, (usedStorageBytes * 100) / (totalStorageBytes > 0 ? totalStorageBytes : 1));
+            double usedStorageGb = usedStorageBytes / (1024.0 * 1024.0 * 1024.0);
+            double totalStorageGb = totalStorageBytes / (1024.0 * 1024.0 * 1024.0);
+            double freeStorageGb = freeStorageBytes / (1024.0 * 1024.0 * 1024.0);
+
+            runOnUiThread(() -> {
+                // Update RAM
+                tvRamDetails.setText(String.format("%.1f GB / %.1f GB (%d%%)", usedRamGb, totalRamGb, ramPercent));
+                tvRamSubtext.setText(String.format("Available: %.1f GB • LMKD MinFree Discount: %dx", availRamGb, discount));
+                pbRam.setProgress(ramPercent);
+
+                // Update CPU
+                tvCpuDetails.setText(String.format("%d%% Load", cpuPercent));
+                tvCpuSubtext.setText(String.format("Active Cores: %d • Sampling rate: 5s", cores));
+                pbCpu.setProgress(cpuPercent);
+
+                // Update Storage
+                tvStorageDetails.setText(String.format("%.1f GB / %.1f GB (%d%%)", usedStorageGb, totalStorageGb, storagePercent));
+                tvStorageSubtext.setText(String.format("Free: %.1f GB", freeStorageGb));
+                pbStorage.setProgress(storagePercent);
+
+                tvShieldCount.setText("KillShield: Active & Shielding Background Kills");
+            });
+        });
+    }
+
+    private int readCpuUsage() {
+        try (BufferedReader reader = new BufferedReader(new FileReader("/proc/stat"))) {
+            String line = reader.readLine();
+            if (line != null && line.startsWith("cpu ")) {
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length >= 5) {
+                    long user = Long.parseLong(parts[1]);
+                    long nice = Long.parseLong(parts[2]);
+                    long system = Long.parseLong(parts[3]);
+                    long idle = Long.parseLong(parts[4]);
+                    long iowait = parts.length > 5 ? Long.parseLong(parts[5]) : 0;
+                    long irq = parts.length > 6 ? Long.parseLong(parts[6]) : 0;
+                    long softirq = parts.length > 7 ? Long.parseLong(parts[7]) : 0;
+
+                    long total = user + nice + system + idle + iowait + irq + softirq;
+                    long totalIdle = idle + iowait;
+
+                    if (mLastTotalCpu != 0) {
+                        long diffTotal = total - mLastTotalCpu;
+                        long diffIdle = totalIdle - mLastIdleCpu;
+                        mLastTotalCpu = total;
+                        mLastIdleCpu = totalIdle;
+                        if (diffTotal > 0) {
+                            int usage = (int) (100 * (diffTotal - diffIdle) / diffTotal);
+                            return Math.max(0, Math.min(100, usage));
+                        }
+                    }
+                    mLastTotalCpu = total;
+                    mLastIdleCpu = totalIdle;
                 }
             }
-        } catch (Throwable ignored) {
-        }
-
-        ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-        if (am != null) {
-            am.getMemoryInfo(mi);
-        }
-
-        long totalGb = totalRam > 0 ? (totalRam / (1024 * 1024 * 1024L)) : (mi.totalMem / (1024 * 1024 * 1024L));
-        long availGb = mi.availMem / (1024 * 1024 * 1024L);
-        int discount = totalGb >= 15 ? 5 : (totalGb >= 11 ? 4 : 3);
-
-        tvMemoryInfo.setText(String.format("RAM: %d GB Total • %d GB Available (LMKD Tuning: %dx)", totalGb, availGb, discount));
-        tvShieldCount.setText("KillShield Status: Active & Shielding Background Kills");
+        } catch (Throwable ignored) {}
+        return 0;
     }
 
     private void updateVipSummary() {
@@ -354,6 +500,7 @@ public class MainActivity extends AppCompatActivity {
             .setCancelable(true)
             .create();
 
+        // Async Background App Loader
         sWorkerPool.execute(() -> {
             PackageManager pm = getPackageManager();
             List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
