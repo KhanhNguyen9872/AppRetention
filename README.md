@@ -126,8 +126,8 @@ AppRetentionHook 是一款 **Lsp 模块**，通过 **Hook 系统 kill 逻辑** �
 
 📌 **翻译提供**
 
-- **English**：焕晨HChen, ℓοѕτ οиє ⌕ — 🚫🥄(Telegram Name)
-- **简体中文**：焕晨HChen
+- **English**：HChenX & KhanhNguyen9872, ℓοѕτ οиє ⌕ — 🚫🥄(Telegram Name)
+- **简体中文**：HChenX & KhanhNguyen9872
 
 ---
 

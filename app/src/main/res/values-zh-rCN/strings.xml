@@ -1,4 +1,5 @@
 <resources>
-    <string name="app_name">AppRetention</string>
-    <string name="app_more">后台应用留存能力加强，Hook防杀。\nby:焕晨HChen</string>
+    <string name="app_name">AppRetentionFork</string>
+    <string name="app_more">后台应用留存能力加强，Hook防杀。
+by: HChenX &amp; KhanhNguyen9872</string>
 </resources>

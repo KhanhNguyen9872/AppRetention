@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AppRetention</string>
-    <string name="app_more">Cải thiện khả năng giữ đa nhiệm ứng dụng chạy nền.\nbởi: HChen</string>
+    <string name="app_name">AppRetentionFork</string>
+    <string name="app_more">Cải thiện khả năng giữ đa nhiệm ứng dụng chạy nền.
+bởi: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- System Status Card -->
     <string name="title_system_framework">Khung Hệ Thống (System Framework)</string>

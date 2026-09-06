@@ -139,8 +139,8 @@ provide feedback.
 
 📌 **Translation Provided By:**
 
-- **English**: HChen (焕晨HChen), ℓοѕτ οиє ⌕ — 🚫🥄 (Telegram Name)
-- **Simplified Chinese**: HChen (焕晨HChen)
+- **English**: HChenX & KhanhNguyen9872, ℓοѕτ οиє ⌕ — 🚫🥄 (Telegram Name)
+- **Simplified Chinese**: HChenX & KhanhNguyen9872
 
 ---
 
