@@ -225,6 +225,25 @@ public final class RootTool {
         }
         return list;
     }
+    public static void cleanLegacyTraces() {
+        sAsyncExecutor.execute(() -> {
+            if (isRootAvailable()) {
+                Process p = null;
+                try {
+                    p = Runtime.getRuntime().exec(new String[]{"su", "-c", "rm -rf /data/system/AppRetention 2>/dev/null"});
+                    p.waitFor();
+                } catch (Throwable ignored) {
+                } finally {
+                    if (p != null) {
+                        try {
+                            p.destroy();
+                        } catch (Throwable ignored) {}
+                    }
+                }
+            }
+        });
+    }
+
     public static void killProcess(int pid, String packageName) {
         sAsyncExecutor.execute(() -> {
             if (isRootAvailable()) {

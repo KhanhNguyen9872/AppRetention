@@ -73,8 +73,33 @@ public class SaveLog {
     public static final String USER_UNLOCKED_COMPLETED_PROP = "persist.sys.user.unlocked.completed";
     @Deprecated
     public static final String SETTINGS_LOG_SERVICE_COMPLETED = "log_service_boot_complete";
-    public static final String LOG_FILE_PATH = "/data/system/AppRetention/";
-    private static final String LOG_OLD_FILE_PATH = "/data/system/AppRetention/old/";
+    public static final String LOG_FILE_PATH = "/data/user_de/0/com.hchen.appretention/files/logs/";
+    private static final String LOG_OLD_FILE_PATH = "/data/user_de/0/com.hchen.appretention/files/logs/old/";
+
+    static {
+        cleanLegacyDir();
+    }
+
+    public static void cleanLegacyDir() {
+        try {
+            File legacyDir = new File("/data/system/AppRetention");
+            if (legacyDir.exists()) {
+                deleteDirRecursive(legacyDir);
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void deleteDirRecursive(File fileOrDir) {
+        if (fileOrDir.isDirectory()) {
+            File[] children = fileOrDir.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteDirRecursive(child);
+                }
+            }
+        }
+        fileOrDir.delete();
+    }
     private static String LOG_FILE_FULL_PATH = "";
     private static final HashMap<String, LogFileStateData> mLogFileStateDataMap = new HashMap<>();
     private static final HashMap<String, LogContentData> mLogContentDataMap = new HashMap<>();

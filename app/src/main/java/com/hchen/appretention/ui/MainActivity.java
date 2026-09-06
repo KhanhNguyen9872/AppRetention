@@ -121,6 +121,9 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
 
+        // Remove legacy root/Xposed traces in /data/system/AppRetention
+        RootTool.cleanLegacyTraces();
+
         initViews();
         setupSwitches();
         checkAndPromptRoot();
@@ -592,26 +595,32 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshLogs() {
         StringBuilder sb = new StringBuilder();
-        File logDir = new File(getExternalFilesDir(null), "logs");
-        if (!logDir.exists()) {
-            logDir = new File(getFilesDir(), "logs");
-        }
-        if (logDir.exists() && logDir.isDirectory()) {
-            File[] files = logDir.listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            sb.append(line).append("\n");
+        File[] candidateDirs = new File[]{
+                new File("/data/user_de/0/com.hchen.appretention/files/logs"),
+                new File(getFilesDir(), "logs"),
+                new File(getExternalFilesDir(null), "logs")
+        };
+        boolean hasLogs = false;
+        for (File logDir : candidateDirs) {
+            if (logDir.exists() && logDir.isDirectory()) {
+                File[] files = logDir.listFiles();
+                if (files != null && files.length > 0) {
+                    for (File f : files) {
+                        if (f.isFile() && f.getName().endsWith(".log")) {
+                            try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    sb.append(line).append("\n");
+                                    hasLogs = true;
+                                }
+                            } catch (Throwable ignored) {}
                         }
-                    } catch (Throwable ignored) {
                     }
                 }
             }
         }
 
-        if (sb.length() > 0) {
+        if (hasLogs) {
             tvLogContent.setText(sb.toString());
         } else {
             tvLogContent.setText("No Hook logs recorded yet. Logs will appear here as Android system services run.");
@@ -619,11 +628,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void clearLogFiles() {
-        File[] dirs = new File[]{
-            new File(getExternalFilesDir(null), "logs"),
-            new File(getFilesDir(), "logs")
+        File[] candidateDirs = new File[]{
+                new File("/data/user_de/0/com.hchen.appretention/files/logs"),
+                new File(getExternalFilesDir(null), "logs"),
+                new File(getFilesDir(), "logs")
         };
-        for (File dir : dirs) {
+        for (File dir : candidateDirs) {
             if (dir.exists() && dir.isDirectory()) {
                 File[] files = dir.listFiles();
                 if (files != null) {
