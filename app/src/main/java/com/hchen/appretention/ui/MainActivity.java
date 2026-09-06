@@ -40,6 +40,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -290,9 +291,15 @@ public class MainActivity extends AppCompatActivity {
                 pbRam.setProgress(ramPercent);
 
                 // Update CPU
-                tvCpuDetails.setText(String.format("%d%% Load", cpuPercent));
-                tvCpuSubtext.setText(String.format("Active Cores: %d • Sampling rate: 5s", cores));
-                pbCpu.setProgress(cpuPercent);
+                if (cpuPercent >= 0) {
+                    tvCpuDetails.setText(String.format(Locale.US, "%d%% Load", cpuPercent));
+                    tvCpuSubtext.setText(String.format(Locale.US, "Active Cores: %d • Sampling rate: 5s", cores));
+                    pbCpu.setProgress(cpuPercent);
+                } else {
+                    tvCpuDetails.setText("N/A");
+                    tvCpuSubtext.setText(String.format(Locale.US, "Active Cores: %d • Root required", cores));
+                    pbCpu.setProgress(0);
+                }
 
                 // Update Storage
                 tvStorageDetails.setText(String.format("%.1f GB / %.1f GB (%d%%)", usedStorageGb, totalStorageGb, storagePercent));
@@ -304,39 +311,123 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private static volatile Boolean sCanReadProcStatDirectly = null;
+
+    private static String getCpuStatLine() {
+        if (sCanReadProcStatDirectly == null || sCanReadProcStatDirectly) {
+            try (BufferedReader reader = new BufferedReader(new FileReader("/proc/stat"))) {
+                String line = reader.readLine();
+                if (line != null && line.startsWith("cpu ")) {
+                    sCanReadProcStatDirectly = true;
+                    return line;
+                }
+            } catch (Throwable e) {
+                sCanReadProcStatDirectly = false;
+            }
+        }
+        return RootTool.readCpuStatLine();
+    }
+
+    private static long[] parseCpuLine(String line) {
+        try {
+            String[] parts = line.trim().split("\\s+");
+            if (parts.length >= 5) {
+                long user = Long.parseLong(parts[1]);
+                long nice = Long.parseLong(parts[2]);
+                long system = Long.parseLong(parts[3]);
+                long idle = Long.parseLong(parts[4]);
+                long iowait = parts.length > 5 ? Long.parseLong(parts[5]) : 0;
+                long irq = parts.length > 6 ? Long.parseLong(parts[6]) : 0;
+                long softirq = parts.length > 7 ? Long.parseLong(parts[7]) : 0;
+                long steal = parts.length > 8 ? Long.parseLong(parts[8]) : 0;
+
+                long total = user + nice + system + idle + iowait + irq + softirq + steal;
+                long totalIdle = idle + iowait;
+                return new long[]{total, totalIdle};
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
     private int readCpuUsage() {
-        try (BufferedReader reader = new BufferedReader(new FileReader("/proc/stat"))) {
-            String line = reader.readLine();
-            if (line != null && line.startsWith("cpu ")) {
-                String[] parts = line.trim().split("\\s+");
-                if (parts.length >= 5) {
-                    long user = Long.parseLong(parts[1]);
-                    long nice = Long.parseLong(parts[2]);
-                    long system = Long.parseLong(parts[3]);
-                    long idle = Long.parseLong(parts[4]);
-                    long iowait = parts.length > 5 ? Long.parseLong(parts[5]) : 0;
-                    long irq = parts.length > 6 ? Long.parseLong(parts[6]) : 0;
-                    long softirq = parts.length > 7 ? Long.parseLong(parts[7]) : 0;
+        String line = getCpuStatLine();
+        if (line != null) {
+            long[] stats = parseCpuLine(line);
+            if (stats != null) {
+                long total = stats[0];
+                long totalIdle = stats[1];
 
-                    long total = user + nice + system + idle + iowait + irq + softirq;
-                    long totalIdle = idle + iowait;
-
-                    if (mLastTotalCpu != 0) {
-                        long diffTotal = total - mLastTotalCpu;
-                        long diffIdle = totalIdle - mLastIdleCpu;
-                        mLastTotalCpu = total;
-                        mLastIdleCpu = totalIdle;
-                        if (diffTotal > 0) {
-                            int usage = (int) (100 * (diffTotal - diffIdle) / diffTotal);
-                            return Math.max(0, Math.min(100, usage));
-                        }
+                if (mLastTotalCpu != 0) {
+                    long diffTotal = total - mLastTotalCpu;
+                    long diffIdle = totalIdle - mLastIdleCpu;
+                    mLastTotalCpu = total;
+                    mLastIdleCpu = totalIdle;
+                    if (diffTotal > 0) {
+                        int usage = (int) (100 * (diffTotal - diffIdle) / diffTotal);
+                        return Math.max(1, Math.min(100, usage));
                     }
+                } else {
+                    // Initial cold-start sample: 200ms quick delta so user sees live load immediately
+                    try {
+                        Thread.sleep(200);
+                        String line2 = getCpuStatLine();
+                        if (line2 != null) {
+                            long[] stats2 = parseCpuLine(line2);
+                            if (stats2 != null) {
+                                long diffTotal = stats2[0] - total;
+                                long diffIdle = stats2[1] - totalIdle;
+                                mLastTotalCpu = stats2[0];
+                                mLastIdleCpu = stats2[1];
+                                if (diffTotal > 0) {
+                                    int usage = (int) (100 * (diffTotal - diffIdle) / diffTotal);
+                                    return Math.max(1, Math.min(100, usage));
+                                }
+                            }
+                        }
+                    } catch (Throwable ignored) {}
                     mLastTotalCpu = total;
                     mLastIdleCpu = totalIdle;
                 }
             }
+        }
+
+        // Secondary fallback: Hardware CPU frequency scaling
+        int freqLoad = readCpuFreqLoad();
+        if (freqLoad >= 0) {
+            return freqLoad;
+        }
+
+        return -1;
+    }
+
+    private int readCpuFreqLoad() {
+        try {
+            int cores = Runtime.getRuntime().availableProcessors();
+            long totalCur = 0;
+            long totalMax = 0;
+            for (int i = 0; i < cores; i++) {
+                long cur = readLongFromFile("/sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
+                long max = readLongFromFile("/sys/devices/system/cpu/cpu" + i + "/cpufreq/cpuinfo_max_freq");
+                if (cur > 0 && max > 0) {
+                    totalCur += cur;
+                    totalMax += max;
+                }
+            }
+            if (totalMax > 0) {
+                return (int) Math.max(1, Math.min(100, (totalCur * 100) / totalMax));
+            }
         } catch (Throwable ignored) {}
-        return 0;
+        return -1;
+    }
+
+    private static long readLongFromFile(String path) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
+            String line = reader.readLine();
+            if (line != null) {
+                return Long.parseLong(line.trim());
+            }
+        } catch (Throwable ignored) {}
+        return -1;
     }
 
     private void updateVipSummary() {

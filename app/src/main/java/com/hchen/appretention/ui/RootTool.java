@@ -43,6 +43,31 @@ public final class RootTool {
         });
     }
 
+    public static String readCpuStatLine() {
+        if (!isRootAvailable()) return null;
+        Process p = null;
+        try {
+            p = Runtime.getRuntime().exec(new String[]{"su", "-c", "head -n 1 /proc/stat 2>/dev/null || cat /proc/stat"});
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.startsWith("cpu ")) {
+                        return line;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        } finally {
+            if (p != null) {
+                try {
+                    p.destroy();
+                } catch (Throwable ignored) {}
+            }
+        }
+        return null;
+    }
+
     public static class ProcessInfo {
         public final int pid;
         public final String processName;
