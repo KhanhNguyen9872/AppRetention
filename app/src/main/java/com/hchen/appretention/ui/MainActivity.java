@@ -549,7 +549,21 @@ public class MainActivity extends AppCompatActivity {
                     if (vipSet.contains(pkg)) {
                         adj = 200;
                     }
-                    items.add(new ProcessItem(label, pi.processName, pi.pid, adj, icon));
+                    long memBytes = pi.memoryBytes;
+                    if (memBytes <= 0) {
+                        try {
+                            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                            if (am != null) {
+                                android.os.Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(new int[]{pi.pid});
+                                if (mi != null && mi.length > 0 && mi[0] != null) {
+                                    long pssKb = mi[0].getTotalPss();
+                                    if (pssKb <= 0) pssKb = mi[0].getTotalPrivateDirty();
+                                    if (pssKb > 0) memBytes = pssKb * 1024L;
+                                }
+                            }
+                        } catch (Throwable ignored) {}
+                    }
+                    items.add(new ProcessItem(label, pi.processName, pi.pid, adj, icon, memBytes));
                 }
             } else {
                 ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
@@ -578,7 +592,16 @@ public class MainActivity extends AppCompatActivity {
                             }
                             if (label == null) label = pkg;
                             int estimatedAdj = vipSet.contains(pkg) ? 200 : (200 + (items.size() * 5));
-                            items.add(new ProcessItem(label, pkg, info.pid, estimatedAdj, icon));
+                            long memBytes = 0;
+                            try {
+                                android.os.Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(new int[]{info.pid});
+                                if (mi != null && mi.length > 0 && mi[0] != null) {
+                                    long pssKb = mi[0].getTotalPss();
+                                    if (pssKb <= 0) pssKb = mi[0].getTotalPrivateDirty();
+                                    if (pssKb > 0) memBytes = pssKb * 1024L;
+                                }
+                            } catch (Throwable ignored) {}
+                            items.add(new ProcessItem(label, pkg, info.pid, estimatedAdj, icon, memBytes));
                         }
                     }
                 }

@@ -159,11 +159,13 @@ public final class RootTool {
         public final int pid;
         public final String processName;
         public final int adj;
+        public final long memoryBytes;
 
-        public ProcessInfo(int pid, String processName, int adj) {
+        public ProcessInfo(int pid, String processName, int adj, long memoryBytes) {
             this.pid = pid;
             this.processName = processName;
             this.adj = adj;
+            this.memoryBytes = memoryBytes;
         }
     }
 
@@ -173,31 +175,63 @@ public final class RootTool {
 
         Process p = null;
         try {
-            String script = "if ps -A -o PID,ARGS >/dev/null 2>&1; then " +
-                    "ps -A -o PID,ARGS | while read -r pid cmd; do " +
+            String script = "if ps -A -o PID,RSS,ARGS >/dev/null 2>&1; then " +
+                    "ps -A -o PID,RSS,ARGS | while read -r pid rss cmd; do " +
                     "[ \"$pid\" -gt 0 ] 2>/dev/null || continue; " +
                     "[ -f \"/proc/$pid/oom_score_adj\" ] || continue; " +
                     "read -r adj < \"/proc/$pid/oom_score_adj\" || continue; " +
-                    "echo \"$pid:$cmd:$adj\"; " +
+                    "if [ \"$rss\" = \"0\" ] || [ -z \"$rss\" ]; then " +
+                    "if [ -f \"/proc/$pid/statm\" ]; then " +
+                    "read -r _tot _res _rest < \"/proc/$pid/statm\"; " +
+                    "[ \"$_res\" -gt 0 ] 2>/dev/null && rss=$((_res * 4)); " +
+                    "fi; " +
+                    "fi; " +
+                    "echo \"$pid:$cmd:$adj:$rss\"; " +
                     "done; " +
                     "else " +
                     "for d in /proc/[0-9]*; do " +
                     "[ -f \"$d/oom_score_adj\" ] || continue; " +
                     "read -r adj < \"$d/oom_score_adj\" || continue; " +
                     "c=$(cat \"$d/cmdline\" 2>/dev/null | tr '\\0' ' '); " +
-                    "[ -n \"$c\" ] && echo \"${d##*/}:$c:$adj\"; " +
+                    "[ -n \"$c\" ] || continue; " +
+                    "rss=0; " +
+                    "if [ -f \"$d/statm\" ]; then " +
+                    "read -r _tot _res _rest < \"$d/statm\"; " +
+                    "[ \"$_res\" -gt 0 ] 2>/dev/null && rss=$((_res * 4)); " +
+                    "fi; " +
+                    "echo \"${d##*/}:$c:$adj:$rss\"; " +
                     "done; " +
                     "fi";
             p = Runtime.getRuntime().exec(new String[]{"su", "-c", script});
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    String[] parts = line.split(":", 3);
-                    if (parts.length == 3) {
+                    String[] parts = line.split(":", 4);
+                    if (parts.length >= 3) {
                         try {
                             int pid = Integer.parseInt(parts[0].trim());
                             String name = parts[1].trim();
                             int adj = Integer.parseInt(parts[2].trim());
+                            long memBytes = 0;
+                            if (parts.length >= 4) {
+                                try {
+                                    String rssStr = parts[3].trim().toLowerCase();
+                                    if (rssStr.endsWith("g")) {
+                                        double gb = Double.parseDouble(rssStr.replace("g", "").trim());
+                                        memBytes = (long) (gb * 1024L * 1024L * 1024L);
+                                    } else if (rssStr.endsWith("m")) {
+                                        double mb = Double.parseDouble(rssStr.replace("m", "").trim());
+                                        memBytes = (long) (mb * 1024L * 1024L);
+                                    } else if (rssStr.endsWith("k")) {
+                                        double kb = Double.parseDouble(rssStr.replace("k", "").trim());
+                                        memBytes = (long) (kb * 1024L);
+                                    } else {
+                                        long kb = Long.parseLong(rssStr);
+                                        memBytes = kb * 1024L;
+                                    }
+                                } catch (Throwable ignored) {}
+                            }
+
                             if (!name.isEmpty() && !name.startsWith("/") && !name.startsWith("[")) {
                                 if (name.contains(" ")) {
                                     name = name.substring(0, name.indexOf(' '));
@@ -208,7 +242,7 @@ public final class RootTool {
                                 }
                                 String cleanName = name.trim();
                                 if (!cleanName.isEmpty()) {
-                                    list.add(new ProcessInfo(pid, cleanName, adj));
+                                    list.add(new ProcessInfo(pid, cleanName, adj, memBytes));
                                 }
                             }
                         } catch (Throwable ignored) {}
@@ -225,6 +259,7 @@ public final class RootTool {
         }
         return list;
     }
+
     public static void cleanLegacyTraces() {
         sAsyncExecutor.execute(() -> {
             if (isRootAvailable()) {

@@ -64,7 +64,9 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
             public boolean areContentsTheSame(int oldPos, int newPos) {
                 ProcessItem oldItem = processList.get(oldPos);
                 ProcessItem newItem = newList.get(newPos);
-                return oldItem.adj == newItem.adj && oldItem.packageName.equals(newItem.packageName);
+                return oldItem.adj == newItem.adj &&
+                        oldItem.packageName.equals(newItem.packageName) &&
+                        oldItem.getFormattedMemory().equals(newItem.getFormattedMemory());
             }
         });
 
@@ -85,7 +87,7 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
         ProcessItem item = processList.get(position);
         holder.tvName.setText(item.appName);
         holder.tvPackage.setText(item.packageName);
-        holder.tvPid.setText(holder.itemView.getContext().getString(R.string.format_process_pid, item.pid));
+        holder.tvPid.setText(holder.itemView.getContext().getString(R.string.format_process_pid, item.pid, item.getFormattedMemory()));
 
         if (item.icon != null) {
             holder.ivIcon.setImageDrawable(item.icon);

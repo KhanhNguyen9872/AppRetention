@@ -5,5 +5,5 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <!-- Process Actions -->
     <string name="btn_kill_process">终止</string>
     <string name="toast_killed_process">已终止 %s</string>
-    <string name="format_process_pid">PID: %d</string>
+    <string name="format_process_pid">PID: %1$d - 占用: %2$s</string>
 </resources>

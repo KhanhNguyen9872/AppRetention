@@ -49,9 +49,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:text="PID: 1234"
+            android:text="PID: 1234 - Used: 245.8 MB"
             android:textColor="@color/text_muted"
-            android:textSize="10.5sp" />
+            android:textSize="10.5sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
     </LinearLayout>
 
     <LinearLayout

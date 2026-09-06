@@ -75,5 +75,5 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <!-- Process Actions -->
     <string name="btn_kill_process">Kill</string>
     <string name="toast_killed_process">Terminated %s</string>
-    <string name="format_process_pid">PID: %d</string>
+    <string name="format_process_pid">PID: %1$d - Used: %2$s</string>
 </resources>
