@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select VIP Apps"
+        android:text="Keep-Alive List"
         android:textColor="@color/text_title"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -17,7 +17,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Pinned apps remain locked at ADJ 200 (Zero-Kill Immunity)."
+        android:text="Selected apps remain locked at ADJ 200 (Zero-Kill Immunity)."
         android:textColor="@color/text_body"
         android:textSize="12sp"
         android:layout_marginTop="2dp"

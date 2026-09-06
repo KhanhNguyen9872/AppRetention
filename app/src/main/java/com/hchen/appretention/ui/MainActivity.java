@@ -341,7 +341,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateVipSummary() {
         Set<String> vips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
-        tvVipSummary.setText(String.format("Pinned: %d apps (Total Kill Immunity at ADJ 200)", vips.size()));
+        tvVipSummary.setText(String.format("Keep-Alive: %d apps (Locked at ADJ 200)", vips.size()));
     }
 
     private void refreshRunningProcesses() {
@@ -560,7 +560,7 @@ public class MainActivity extends AppCompatActivity {
             String joined = String.join(",", newVips);
             RootTool.setProp("persist.hchen.adj.vip_packages", joined);
             updateVipSummary();
-            Toast.makeText(this, "Pinned " + newVips.size() + " VIP apps (ADJ 200)", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Saved " + newVips.size() + " Keep-Alive apps (ADJ 200)", Toast.LENGTH_SHORT).show();
             dialog.dismiss();
             refreshRunningProcesses();
         });

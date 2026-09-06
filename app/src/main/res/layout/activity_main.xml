@@ -329,7 +329,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="VIP App Whitelist"
+                            android:text="Keep-Alive List"
                             android:textColor="@color/text_title"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -337,7 +337,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Apps selected here are permanently pinned at ADJ 200 (Total Kill Immunity), regardless of how many other apps are opened."
+                            android:text="Apps in this list are locked at ADJ 200 with complete kill immunity, ensuring they are never terminated in the background."
                             android:textColor="@color/text_body"
                             android:textSize="13sp"
                             android:layout_marginTop="4dp" />
@@ -347,7 +347,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="Pinned: 0 apps"
+                            android:text="Keep-Alive: 0 apps"
                             android:textColor="@color/primary_accent"
                             android:textSize="13sp"
                             android:textStyle="bold" />
@@ -356,7 +356,7 @@
                             android:id="@+id/btnManageVip"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Select VIP Apps"
+                            android:text="Select Keep-Alive Apps"
                             android:layout_marginTop="12dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
