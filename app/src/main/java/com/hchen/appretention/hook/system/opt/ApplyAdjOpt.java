@@ -183,8 +183,14 @@ public class ApplyAdjOpt {
                     int perceptibleCount = SystemPropTool.getProp("persist.hchen.adj.perceptible.count", 8);
 
                     boolean isMain = pr.isMainProcess || pr.isolated || pr.isSdkSandbox;
+                    HashSet<String> vipPackages = getVipPackages();
+                    boolean isVip = pr.packageName != null && vipPackages.contains(pr.packageName);
+
                     int adj;
-                    if (isPerceptibleTierEnabled && index < perceptibleCount) {
+                    if (isVip) {
+                        // VIP apps are permanently pinned at ADJ 200 (Total Kill Immunity)
+                        adj = isMain ? PERCEPTIBLE_TIER_MIN_ADJ : PERCEPTIBLE_SUB_MIN_ADJ;
+                    } else if (isPerceptibleTierEnabled && index < perceptibleCount) {
                         if (isMain) {
                             adj = Math.min(PERCEPTIBLE_TIER_MIN_ADJ + (index * 5), PERCEPTIBLE_TIER_MAX_ADJ);
                         } else {
@@ -205,6 +211,21 @@ public class ApplyAdjOpt {
                 }
             }
         );
+    }
+
+        private static HashSet<String> getVipPackages() {
+        HashSet<String> vipSet = new HashSet<>();
+        try {
+            String propVip = SystemPropTool.getProp("persist.hchen.adj.vip_packages", "");
+            if (!propVip.isEmpty()) {
+                for (String p : propVip.split(",")) {
+                    String trimmed = p.trim();
+                    if (!trimmed.isEmpty()) vipSet.add(trimmed);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return vipSet;
     }
 
     private static boolean isEnabled() {

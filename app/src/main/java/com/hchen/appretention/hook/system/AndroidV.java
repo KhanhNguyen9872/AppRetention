@@ -62,6 +62,8 @@ import android.os.Looper;
 import com.hchen.appretention.hook.system.opt.ApplyAdjOpt;
 import com.hchen.appretention.hook.system.opt.CacheCompaction;
 import com.hchen.appretention.hook.system.opt.OomLevelsOpt;
+import com.hchen.appretention.hook.system.opt.AppHibernationOpt;
+import com.hchen.appretention.hook.system.opt.AutoStartOpt;
 import com.hchen.appretention.hook.system.opt.KillShieldOpt;
 import com.hchen.appretention.hook.system.opt.DeviceIdleOpt;
 import com.hchen.appretention.hook.nubia.NubiaPolicy;
@@ -84,6 +86,8 @@ public class AndroidV extends HCBase {
         ApplyAdjOpt.init();
         KillShieldOpt.init();
         DeviceIdleOpt.init();
+        AppHibernationOpt.init();
+        AutoStartOpt.init();
         if (DeviceTool.isRightRom("nubia", "zte", "redmagic")) {
             NubiaPolicy.manualInit();
         }
