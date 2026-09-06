@@ -1,15 +1,19 @@
 package com.hchen.appretention.hook.system.opt;
 
+import static com.hchen.appretention.data.path.SystemClass.ProcessList;
 import static com.hchen.appretention.data.path.SystemClass.RecentTasks;
 import static com.hchen.appretention.data.path.SystemClass.Task;
 import static com.hchen.hooktool.core.CoreTool.findClassIfExists;
 import static com.hchen.hooktool.core.CoreTool.getField;
 import static com.hchen.hooktool.core.CoreTool.callMethod;
+import static com.hchen.hooktool.core.CoreTool.hook;
 import static com.hchen.hooktool.core.CoreTool.hookMethod;
 
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 
+import com.hchen.appretention.data.field.SystemField;
 import com.hchen.appretention.log.XposedLog;
 import com.hchen.hooktool.hook.IHook;
 import com.hchen.hooktool.utils.SystemPropTool;
@@ -23,6 +27,7 @@ import java.util.HashSet;
  *    running when cleared/swiped from Recents.
  * 2. Immediate Kill behavior (when persist.hchen.restrict.immediate_kill is enabled):
  *    Terminates the restricted app immediately when leaving foreground.
+ * 3. Wakeup Suppression: Intercepts and suppresses background broadcast auto-restarts for restricted apps.
  *
  * @author Antigravity & HChenX
  */
@@ -37,6 +42,7 @@ public final class BackgroundRestrictOpt {
 
     public static void init() {
         hookRecentTasksRemove();
+        hookBroadcastWakeupSuppression();
         XposedLog.logI(TAG, "BackgroundRestrictOpt initialized successfully!");
     }
 
@@ -76,7 +82,6 @@ public final class BackgroundRestrictOpt {
             return;
         }
 
-        // Hook remove(Task task)
         try {
             hookMethod(RecentTasks, "remove", Task, new IHook() {
                 @Override
@@ -94,6 +99,64 @@ public final class BackgroundRestrictOpt {
             XposedLog.logD(TAG, "Hooked RecentTasks.remove(Task) successfully.");
         } catch (Throwable t) {
             XposedLog.logE(TAG, "Failed to hook RecentTasks.remove(Task)", t);
+        }
+    }
+
+    private static void hookBroadcastWakeupSuppression() {
+        Class<?> plClass = findClassIfExists(ProcessList);
+        if (plClass == null) return;
+
+        try {
+            for (Method m : plClass.getDeclaredMethods()) {
+                if ("startProcessLocked".equals(m.getName())) {
+                    hook(m, new IHook() {
+                        @Override
+                        public void before() {
+                            Object[] args = getArgs();
+                            if (args == null) return;
+
+                            String pkg = null;
+                            boolean isBackgroundWakeup = false;
+
+                            for (Object arg : args) {
+                                if (arg == null) continue;
+                                if (pkg == null) {
+                                    if (arg.getClass().getName().endsWith("ProcessRecord")) {
+                                        try {
+                                            ApplicationInfo info = (ApplicationInfo) getField(arg, SystemField.info);
+                                            if (info != null) pkg = info.packageName;
+                                        } catch (Throwable ignored) {}
+                                    } else if (arg instanceof ApplicationInfo) {
+                                        pkg = ((ApplicationInfo) arg).packageName;
+                                    }
+                                }
+                                if (arg.getClass().getName().endsWith("HostingRecord")) {
+                                    try {
+                                        Object typeObj = callMethod(arg, "getType");
+                                        String type = typeObj != null ? typeObj.toString().toLowerCase() : "";
+                                        if (type.contains("broadcast") || type.contains("backup")) {
+                                            isBackgroundWakeup = true;
+                                        }
+                                    } catch (Throwable ignored) {}
+                                } else if (arg instanceof String) {
+                                    String str = ((String) arg).toLowerCase();
+                                    if (str.equals("broadcast") || str.equals("backup")) {
+                                        isBackgroundWakeup = true;
+                                    }
+                                }
+                            }
+
+                            if (pkg != null && isRestricted(pkg) && isBackgroundWakeup) {
+                                XposedLog.logI(TAG, "Suppressed background broadcast auto-restart for restricted app: " + pkg);
+                                returnNull();
+                            }
+                        }
+                    });
+                }
+            }
+            XposedLog.logD(TAG, "Hooked ProcessList.startProcessLocked for wakeup suppression.");
+        } catch (Throwable t) {
+            XposedLog.logE(TAG, "Failed to hook ProcessList.startProcessLocked", t);
         }
     }
 

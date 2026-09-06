@@ -14,7 +14,9 @@ import com.google.android.material.button.MaterialButton;
 import com.hchen.appretention.R;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHolder> {
 
@@ -23,6 +25,8 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
     }
 
     private final List<ProcessItem> processList = new ArrayList<>();
+    private final Set<String> vipPackages = new HashSet<>();
+    private final Set<String> restrictedPackages = new HashSet<>();
     private OnProcessKillListener killListener;
 
     public ProcessAdapter(List<ProcessItem> initialList) {
@@ -33,6 +37,14 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
 
     public void setOnProcessKillListener(OnProcessKillListener listener) {
         this.killListener = listener;
+    }
+
+    public void setPolicyPackages(Set<String> vips, Set<String> restricted) {
+        vipPackages.clear();
+        if (vips != null) vipPackages.addAll(vips);
+        restrictedPackages.clear();
+        if (restricted != null) restrictedPackages.addAll(restricted);
+        notifyDataSetChanged();
     }
 
     public void removeItem(int position) {
@@ -93,7 +105,18 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
             holder.ivIcon.setImageDrawable(item.icon);
         }
 
-        if (item.adj <= 249) {
+        boolean isVip = vipPackages.contains(item.packageName);
+        boolean isRestricted = restrictedPackages.contains(item.packageName);
+
+        if (isVip) {
+            holder.tvBadge.setText("ADJ " + item.adj + " • " + holder.itemView.getContext().getString(R.string.badge_proc_keep_alive));
+            holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_green);
+            holder.tvBadge.setTextColor(0xFF22C55E);
+        } else if (isRestricted) {
+            holder.tvBadge.setText("ADJ " + item.adj + " • " + holder.itemView.getContext().getString(R.string.badge_proc_restricted));
+            holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_red);
+            holder.tvBadge.setTextColor(0xFFEF4444);
+        } else if (item.adj <= 249) {
             holder.tvBadge.setText("ADJ " + item.adj + " [PERCEPTIBLE]");
             holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_green);
             holder.tvBadge.setTextColor(0xFF22C55E);

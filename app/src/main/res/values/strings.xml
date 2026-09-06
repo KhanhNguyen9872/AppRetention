@@ -119,4 +119,17 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_app_is_restricted_hint">\"%s\" is currently restricted. Unrestrict it in the Restricted tab first to enable Keep-Alive.</string>
     <string name="badge_restricted_short">RESTRICTED</string>
 
+    <!-- Pro Suite Strings -->
+    <string name="section_retention_engine">Retention Engine &amp; Optimizations</string>
+    <string name="section_retention_desc">Advanced system framework hooks for memory retention and killer bypass</string>
+    <string name="section_restriction_engine">Background Restriction Policies</string>
+    <string name="section_restriction_desc">Prevent background execution, auto-restart, and wakelocks for restricted apps</string>
+    <string name="chip_filter_user">User Apps</string>
+    <string name="chip_filter_system">System</string>
+    <string name="dialog_quick_switch_title">Switch to Keep-Alive?</string>
+    <string name="dialog_quick_switch_message">Application \"%s\" is currently restricted from background. Would you like to unrestrict it and pin it to Keep-Alive (ADJ 200) now?</string>
+    <string name="btn_quick_switch_confirm">Unrestrict &amp; Pin</string>
+    <string name="badge_proc_keep_alive">KEEP-ALIVE</string>
+    <string name="badge_proc_restricted">RESTRICTED</string>
+
 </resources>

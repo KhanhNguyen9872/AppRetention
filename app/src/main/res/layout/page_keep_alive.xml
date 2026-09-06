@@ -153,30 +153,53 @@
         </LinearLayout>
 
         <!-- Filter Chips Row -->
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/chipGroupFilter"
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            app:singleSelection="true">
+            android:scrollbars="none"
+            android:layout_marginTop="4dp">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipAllApps"
-                style="@style/Widget.Material3.Chip.Filter"
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupFilter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="All Apps (0)"
-                android:textSize="11.5sp" />
+                app:singleSelection="true"
+                app:selectionRequired="true">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipActiveOnly"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Configured (0)"
-                android:textSize="11.5sp" />
-        </com.google.android.material.chip.ChipGroup>
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterUser"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/chip_filter_user"
+                    android:textSize="11.5sp" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipActiveOnly"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Configured (0)"
+                    android:textSize="11.5sp" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterSystem"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/chip_filter_system"
+                    android:textSize="11.5sp" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipAllApps"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All (0)"
+                    android:textSize="11.5sp" />
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
     </LinearLayout>
 
     <!-- App List or Loading Indicator -->

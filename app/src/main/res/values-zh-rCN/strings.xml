@@ -49,4 +49,17 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_app_is_restricted_hint">\"%s\" 当前已被限制后台运行。若要保活，请先在后台限制列表中取消限制。</string>
     <string name="badge_restricted_short">已受限</string>
 
+    <!-- Pro Suite Strings -->
+    <string name="section_retention_engine">后台保活增强引擎</string>
+    <string name="section_retention_desc">系统框架级内存保留与防杀优化机制</string>
+    <string name="section_restriction_engine">后台限制与黑名单策略</string>
+    <string name="section_restriction_desc">彻底禁止黑名单应用的后台运行、广播唤醒与自启</string>
+    <string name="chip_filter_user">用户应用</string>
+    <string name="chip_filter_system">系统应用</string>
+    <string name="dialog_quick_switch_title">切换为保活应用？</string>
+    <string name="dialog_quick_switch_message">应用 \"%s\" 当前已被限制后台运行。是否立即解除限制并将其加入保活名单 (ADJ 200)？</string>
+    <string name="btn_quick_switch_confirm">解除限制并保活</string>
+    <string name="badge_proc_keep_alive">保活</string>
+    <string name="badge_proc_restricted">已限制</string>
+
 </resources>

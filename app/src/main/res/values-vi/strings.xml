@@ -119,4 +119,17 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_app_is_restricted_hint">\"%s\" đang bị hạn chế chạy ngầm. Hãy bỏ cấm ở tab Cấm chạy ngầm trước nếu muốn giữ nền.</string>
     <string name="badge_restricted_short">HẠN CHẾ NỀN</string>
 
+    <!-- Pro Suite Strings -->
+    <string name="section_retention_engine">Mở rộng Giới hạn Nền</string>
+    <string name="section_retention_desc">Cơ chế mở rộng bộ nhớ đệm và vượt qua trình dọn dẹp hệ thống</string>
+    <string name="section_restriction_engine">Chính sách Chặn Nền</string>
+    <string name="section_restriction_desc">Ngăn chặn chạy ngầm, tự khởi động lại và đánh thức cho app bị cấm</string>
+    <string name="chip_filter_user">Người dùng</string>
+    <string name="chip_filter_system">Hệ thống</string>
+    <string name="dialog_quick_switch_title">Chuyển sang Giữ chạy ngầm?</string>
+    <string name="dialog_quick_switch_message">Ứng dụng \"%s\" hiện đang nằm trong danh sách Cấm chạy ngầm. Bạn có muốn bỏ cấm và ghim giữ nền (ADJ 200) cho ứng dụng này ngay không?</string>
+    <string name="btn_quick_switch_confirm">Bỏ cấm &amp; Ghim</string>
+    <string name="badge_proc_keep_alive">GIỮ NỀN</string>
+    <string name="badge_proc_restricted">CẤM NỀN</string>
+
 </resources>

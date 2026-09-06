@@ -115,6 +115,8 @@ public class MainActivity extends AppCompatActivity {
     private EditText etSearchKeepAlive;
     private ImageView btnClearSearch;
     private ChipGroup chipGroupFilter;
+    private Chip chipFilterUser;
+    private Chip chipFilterSystem;
     private Chip chipAllApps;
     private Chip chipActiveOnly;
     private ProgressBar pbLoadingKeepAlive;
@@ -267,6 +269,10 @@ public class MainActivity extends AppCompatActivity {
                 tvProcessCount.setText(getString(R.string.format_process_count, processAdapter.getItemCount()));
                 mTimerHandler.postDelayed(this::refreshRunningProcesses, 1000);
             });
+            processAdapter.setPolicyPackages(
+                prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()),
+                prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet())
+            );
             rvProcesses.setAdapter(processAdapter);
         }
 
@@ -280,6 +286,8 @@ public class MainActivity extends AppCompatActivity {
         etSearchKeepAlive = findViewById(R.id.etSearchKeepAlive);
         btnClearSearch = findViewById(R.id.btnClearSearch);
         chipGroupFilter = findViewById(R.id.chipGroupFilter);
+        chipFilterUser = findViewById(R.id.chipFilterUser);
+        chipFilterSystem = findViewById(R.id.chipFilterSystem);
         chipAllApps = findViewById(R.id.chipAllApps);
         chipActiveOnly = findViewById(R.id.chipActiveOnly);
         pbLoadingKeepAlive = findViewById(R.id.pbLoadingKeepAlive);
@@ -328,7 +336,17 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onRestrictedItemClickedInKeepAlive(AppItem item) {
-                    Toast.makeText(MainActivity.this, getString(R.string.toast_app_is_restricted_hint, item.appName), Toast.LENGTH_SHORT).show();
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle(R.string.dialog_quick_switch_title)
+                            .setMessage(getString(R.string.dialog_quick_switch_message, item.appName))
+                            .setPositiveButton(R.string.btn_quick_switch_confirm, (dialog, which) -> {
+                                item.isRestricted = false;
+                                item.isVip = true;
+                                if (keepAliveAdapter != null) keepAliveAdapter.notifyDataSetChanged();
+                                applyAppStateChange(item, KeepAliveAdapter.MODE_KEEP_ALIVE, true);
+                            })
+                            .setNegativeButton(R.string.btn_no_cancel, null)
+                            .show();
                 }
             });
             rvKeepAliveApps.setAdapter(keepAliveAdapter);
@@ -366,8 +384,15 @@ public class MainActivity extends AppCompatActivity {
         if (chipGroupFilter != null) {
             chipGroupFilter.setOnCheckedStateChangeListener((group, checkedIds) -> {
                 if (keepAliveAdapter != null) {
-                    boolean activeOnly = checkedIds.contains(R.id.chipActiveOnly);
-                    keepAliveAdapter.setFilterActiveOnly(activeOnly);
+                    if (checkedIds.contains(R.id.chipFilterUser)) {
+                        keepAliveAdapter.setFilterType(KeepAliveAdapter.FILTER_USER_ONLY);
+                    } else if (checkedIds.contains(R.id.chipActiveOnly)) {
+                        keepAliveAdapter.setFilterType(KeepAliveAdapter.FILTER_ACTIVE_ONLY);
+                    } else if (checkedIds.contains(R.id.chipFilterSystem)) {
+                        keepAliveAdapter.setFilterType(KeepAliveAdapter.FILTER_SYSTEM_ONLY);
+                    } else {
+                        keepAliveAdapter.setFilterType(KeepAliveAdapter.FILTER_ALL);
+                    }
                 }
             });
         }
@@ -551,6 +576,10 @@ public class MainActivity extends AppCompatActivity {
         RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
         RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
 
+        if (processAdapter != null) {
+            processAdapter.setPolicyPackages(vipSet, restrictSet);
+        }
+
         updateKeepAliveHeader();
         refreshRunningProcesses();
     }
@@ -594,6 +623,12 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        if (chipFilterUser != null) {
+            chipFilterUser.setText(getString(R.string.chip_filter_user) + " (" + keepAliveAdapter.getUserCount() + ")");
+        }
+        if (chipFilterSystem != null) {
+            chipFilterSystem.setText(getString(R.string.chip_filter_system) + " (" + keepAliveAdapter.getSystemCount() + ")");
+        }
         if (chipAllApps != null) {
             chipAllApps.setText(getString(R.string.chip_all_apps, totalCount));
         }
@@ -951,6 +986,10 @@ public class MainActivity extends AppCompatActivity {
 
             runOnUiThread(() -> {
                 if (processAdapter != null) {
+                    processAdapter.setPolicyPackages(
+                        prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()),
+                        prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet())
+                    );
                     processAdapter.updateList(items);
                 }
                 if (tvProcessCount != null) {

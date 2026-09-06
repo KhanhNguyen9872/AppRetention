@@ -20,6 +20,11 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
     public static final int MODE_KEEP_ALIVE = 0;
     public static final int MODE_RESTRICTED = 1;
 
+    public static final int FILTER_USER_ONLY = 0;
+    public static final int FILTER_ACTIVE_ONLY = 1;
+    public static final int FILTER_SYSTEM_ONLY = 2;
+    public static final int FILTER_ALL = 3;
+
     public interface OnAppStateChangeListener {
         void onAppStateChanged(AppItem item, int mode, boolean enabled, int position);
         void onSystemAppRestrictedRequested(AppItem item, int position);
@@ -30,7 +35,7 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
     private final List<AppItem> displayList = new ArrayList<>();
     private OnAppStateChangeListener listener;
     private String currentQuery = "";
-    private boolean filterActiveOnly = false;
+    private int currentFilter = FILTER_USER_ONLY;
     private int currentMode = MODE_KEEP_ALIVE;
 
     public KeepAliveAdapter(List<AppItem> list) {
@@ -68,8 +73,8 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
         applyFilter();
     }
 
-    public void setFilterActiveOnly(boolean activeOnly) {
-        this.filterActiveOnly = activeOnly;
+    public void setFilterType(int filterType) {
+        this.currentFilter = filterType;
         applyFilter();
     }
 
@@ -89,6 +94,22 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
         return count;
     }
 
+    public int getUserCount() {
+        int count = 0;
+        for (AppItem item : fullList) {
+            if (!item.isSystemApp) count++;
+        }
+        return count;
+    }
+
+    public int getSystemCount() {
+        int count = 0;
+        for (AppItem item : fullList) {
+            if (item.isSystemApp) count++;
+        }
+        return count;
+    }
+
     public int getActiveCount() {
         return currentMode == MODE_KEEP_ALIVE ? getVipCount() : getRestrictedCount();
     }
@@ -100,7 +121,13 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
     public void applyFilter() {
         displayList.clear();
         for (AppItem item : fullList) {
-            if (filterActiveOnly) {
+            if (currentFilter == FILTER_USER_ONLY && item.isSystemApp) {
+                continue;
+            }
+            if (currentFilter == FILTER_SYSTEM_ONLY && !item.isSystemApp) {
+                continue;
+            }
+            if (currentFilter == FILTER_ACTIVE_ONLY) {
                 if (currentMode == MODE_KEEP_ALIVE && !item.isVip) continue;
                 if (currentMode == MODE_RESTRICTED && !item.isRestricted) continue;
             }
