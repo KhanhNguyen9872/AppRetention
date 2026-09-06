@@ -198,6 +198,24 @@ public class MainActivity extends AppCompatActivity {
         rvProcesses = findViewById(R.id.rvProcesses);
         rvProcesses.setLayoutManager(new LinearLayoutManager(this));
         processAdapter = new ProcessAdapter(processList);
+        processAdapter.setOnProcessKillListener((item, position) -> {
+            RootTool.killProcess(item.pid, item.packageName);
+            try {
+                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) {
+                    String pkg = item.packageName;
+                    if (pkg.contains(":")) {
+                        pkg = pkg.substring(0, pkg.indexOf(':'));
+                    }
+                    am.killBackgroundProcesses(pkg);
+                }
+            } catch (Throwable ignored) {}
+
+            Toast.makeText(MainActivity.this, getString(R.string.toast_killed_process, item.appName), Toast.LENGTH_SHORT).show();
+            processAdapter.removeItem(position);
+            tvProcessCount.setText(getString(R.string.format_process_count, processAdapter.getItemCount()));
+            mTimerHandler.postDelayed(this::refreshRunningProcesses, 1000);
+        });
         rvProcesses.setAdapter(processAdapter);
 
         MaterialButton btnManageVip = findViewById(R.id.btnManageVip);

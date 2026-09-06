@@ -225,4 +225,35 @@ public final class RootTool {
         }
         return list;
     }
+    public static void killProcess(int pid, String packageName) {
+        sAsyncExecutor.execute(() -> {
+            if (isRootAvailable()) {
+                Process p = null;
+                try {
+                    String cmd = "";
+                    if (pid > 0) {
+                        cmd += "kill -9 " + pid + " 2>/dev/null; ";
+                    }
+                    if (packageName != null && !packageName.trim().isEmpty()) {
+                        String cleanPkg = packageName.trim();
+                        if (cleanPkg.contains(":")) {
+                            cleanPkg = cleanPkg.substring(0, cleanPkg.indexOf(':'));
+                        }
+                        cmd += "am force-stop " + cleanPkg + " 2>/dev/null; ";
+                    }
+                    if (!cmd.isEmpty()) {
+                        p = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
+                        p.waitFor();
+                    }
+                } catch (Throwable ignored) {
+                } finally {
+                    if (p != null) {
+                        try {
+                            p.destroy();
+                        } catch (Throwable ignored) {}
+                    }
+                }
+            }
+        });
+    }
 }

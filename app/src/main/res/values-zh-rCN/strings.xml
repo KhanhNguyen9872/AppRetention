@@ -2,4 +2,8 @@
     <string name="app_name">AppRetentionFork</string>
     <string name="app_more">后台应用留存能力加强，Hook防杀。
 by: HChenX &amp; KhanhNguyen9872</string>
+    <!-- Process Actions -->
+    <string name="btn_kill_process">终止</string>
+    <string name="toast_killed_process">已终止 %s</string>
+    <string name="format_process_pid">PID: %d</string>
 </resources>

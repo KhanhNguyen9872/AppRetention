@@ -10,17 +10,36 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
 import com.hchen.appretention.R;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHolder> {
+
+    public interface OnProcessKillListener {
+        void onKill(ProcessItem item, int position);
+    }
+
     private final List<ProcessItem> processList = new ArrayList<>();
+    private OnProcessKillListener killListener;
 
     public ProcessAdapter(List<ProcessItem> initialList) {
         if (initialList != null) {
             this.processList.addAll(initialList);
+        }
+    }
+
+    public void setOnProcessKillListener(OnProcessKillListener listener) {
+        this.killListener = listener;
+    }
+
+    public void removeItem(int position) {
+        if (position >= 0 && position < processList.size()) {
+            processList.remove(position);
+            notifyItemRemoved(position);
+            notifyItemRangeChanged(position, processList.size() - position);
         }
     }
 
@@ -65,7 +84,9 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         ProcessItem item = processList.get(position);
         holder.tvName.setText(item.appName);
-        holder.tvDetail.setText(item.packageName + " • PID " + item.pid);
+        holder.tvPackage.setText(item.packageName);
+        holder.tvPid.setText(holder.itemView.getContext().getString(R.string.format_process_pid, item.pid));
+
         if (item.icon != null) {
             holder.ivIcon.setImageDrawable(item.icon);
         }
@@ -83,6 +104,13 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
             holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_amber);
             holder.tvBadge.setTextColor(0xFFF59E0B);
         }
+
+        holder.btnKill.setOnClickListener(v -> {
+            int pos = holder.getBindingAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && killListener != null && pos < processList.size()) {
+                killListener.onKill(processList.get(pos), pos);
+            }
+        });
     }
 
     @Override
@@ -92,14 +120,17 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView ivIcon;
-        TextView tvName, tvDetail, tvBadge;
+        TextView tvName, tvPackage, tvPid, tvBadge;
+        MaterialButton btnKill;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
             ivIcon = itemView.findViewById(R.id.ivProcIcon);
             tvName = itemView.findViewById(R.id.tvProcName);
-            tvDetail = itemView.findViewById(R.id.tvProcDetail);
+            tvPackage = itemView.findViewById(R.id.tvProcPackage);
+            tvPid = itemView.findViewById(R.id.tvProcPid);
             tvBadge = itemView.findViewById(R.id.tvAdjBadge);
+            btnKill = itemView.findViewById(R.id.btnKillProc);
         }
     }
 }
