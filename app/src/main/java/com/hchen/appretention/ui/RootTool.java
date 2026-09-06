@@ -6,9 +6,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class RootTool {
     private static volatile Boolean sHasRoot = null;
+    private static final ExecutorService sAsyncExecutor = Executors.newSingleThreadExecutor();
 
     private RootTool() {}
 
@@ -28,7 +31,7 @@ public final class RootTool {
     }
 
     public static void setProp(String key, String value) {
-        new Thread(() -> {
+        sAsyncExecutor.execute(() -> {
             try {
                 SystemPropTool.setProp(key, value);
             } catch (Throwable ignored) {}
@@ -37,7 +40,7 @@ public final class RootTool {
                 Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "setprop " + key + " \"" + value + "\""});
                 p.waitFor();
             } catch (Throwable ignored) {}
-        }).start();
+        });
     }
 
     public static class ProcessInfo {

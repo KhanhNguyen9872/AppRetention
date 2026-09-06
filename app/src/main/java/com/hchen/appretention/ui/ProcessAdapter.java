@@ -7,17 +7,51 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hchen.appretention.R;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHolder> {
-    private final List<ProcessItem> processList;
+    private final List<ProcessItem> processList = new ArrayList<>();
 
-    public ProcessAdapter(List<ProcessItem> list) {
-        this.processList = list;
+    public ProcessAdapter(List<ProcessItem> initialList) {
+        if (initialList != null) {
+            this.processList.addAll(initialList);
+        }
+    }
+
+    public void updateList(List<ProcessItem> newList) {
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return processList.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newList.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldPos, int newPos) {
+                return processList.get(oldPos).pid == newList.get(newPos).pid;
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldPos, int newPos) {
+                ProcessItem oldItem = processList.get(oldPos);
+                ProcessItem newItem = newList.get(newPos);
+                return oldItem.adj == newItem.adj && oldItem.packageName.equals(newItem.packageName);
+            }
+        });
+
+        processList.clear();
+        processList.addAll(newList);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull

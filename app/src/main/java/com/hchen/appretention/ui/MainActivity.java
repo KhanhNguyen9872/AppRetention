@@ -36,6 +36,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     private static final String PREF_NAME = "AppRetentionConfig";
@@ -47,9 +49,12 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_HIBERNATION = "persist.hchen.hibernation.opt.enable";
     private static final String KEY_AUTOSTART = "persist.hchen.autostart.opt.enable";
 
-    // High-performance In-memory Caches for Instant UI Rendering
-    private static final LruCache<String, Drawable> sIconCache = new LruCache<>(150);
+    // Memory-leak-free Icon Cache: caches Drawable.ConstantState, avoiding Activity Context leaks
+    private static final LruCache<String, Drawable.ConstantState> sIconCache = new LruCache<>(150);
     private static final LruCache<String, String> sLabelCache = new LruCache<>(250);
+
+    // Controlled background worker pool
+    private static final ExecutorService sWorkerPool = Executors.newFixedThreadPool(2);
 
     private SharedPreferences prefs;
 
@@ -83,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
         setupSwitches();
         refreshAll();
 
-        new Thread(() -> {
+        sWorkerPool.execute(() -> {
             boolean hasRoot = RootTool.isRootAvailable();
             runOnUiThread(() -> {
                 if (hasRoot) {
@@ -92,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
                     tvStatusBadge.setText("System Framework (LibXposed 101) • Standard Mode");
                 }
             });
-        }).start();
+        });
     }
 
     @Override
@@ -194,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshRunningProcesses() {
-        new Thread(() -> {
+        sWorkerPool.execute(() -> {
             List<ProcessItem> items = new ArrayList<>();
             PackageManager pm = getPackageManager();
             Set<String> vipSet = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
@@ -207,15 +212,22 @@ public class MainActivity extends AppCompatActivity {
                         pkg = pkg.substring(0, pkg.indexOf(':'));
                     }
                     String label = sLabelCache.get(pkg);
-                    Drawable icon = sIconCache.get(pkg);
+                    Drawable.ConstantState iconState = sIconCache.get(pkg);
+                    Drawable icon = iconState != null ? iconState.newDrawable() : null;
+
                     if (label == null || icon == null) {
                         try {
                             ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
-                            if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue; // Skip system
+                            if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
                             label = pm.getApplicationLabel(appInfo).toString();
-                            icon = pm.getApplicationIcon(appInfo);
+                            Drawable rawIcon = pm.getApplicationIcon(appInfo);
                             sLabelCache.put(pkg, label);
-                            sIconCache.put(pkg, icon);
+                            if (rawIcon.getConstantState() != null) {
+                                sIconCache.put(pkg, rawIcon.getConstantState());
+                                icon = rawIcon.getConstantState().newDrawable();
+                            } else {
+                                icon = rawIcon;
+                            }
                         } catch (Throwable ignored) {
                             continue;
                         }
@@ -223,7 +235,7 @@ public class MainActivity extends AppCompatActivity {
 
                     int adj = pi.adj;
                     if (vipSet.contains(pkg)) {
-                        adj = 200; // VIP pinned
+                        adj = 200;
                     }
                     items.add(new ProcessItem(label, pi.processName, pi.pid, adj, icon));
                 }
@@ -236,14 +248,20 @@ public class MainActivity extends AppCompatActivity {
                             if (info.uid < 10000) continue;
                             String pkg = (info.pkgList != null && info.pkgList.length > 0) ? info.pkgList[0] : info.processName;
                             String label = sLabelCache.get(pkg);
-                            Drawable icon = sIconCache.get(pkg);
+                            Drawable.ConstantState iconState = sIconCache.get(pkg);
+                            Drawable icon = iconState != null ? iconState.newDrawable() : null;
                             if (label == null || icon == null) {
                                 try {
                                     ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
                                     label = pm.getApplicationLabel(appInfo).toString();
-                                    icon = pm.getApplicationIcon(appInfo);
+                                    Drawable rawIcon = pm.getApplicationIcon(appInfo);
                                     sLabelCache.put(pkg, label);
-                                    sIconCache.put(pkg, icon);
+                                    if (rawIcon.getConstantState() != null) {
+                                        sIconCache.put(pkg, rawIcon.getConstantState());
+                                        icon = rawIcon.getConstantState().newDrawable();
+                                    } else {
+                                        icon = rawIcon;
+                                    }
                                 } catch (Throwable ignored) {}
                             }
                             if (label == null) label = pkg;
@@ -255,12 +273,10 @@ public class MainActivity extends AppCompatActivity {
             }
 
             runOnUiThread(() -> {
-                processList.clear();
-                processList.addAll(items);
-                tvProcessCount.setText(processList.size() + " apps active");
-                processAdapter.notifyDataSetChanged();
+                processAdapter.updateList(items);
+                tvProcessCount.setText(items.size() + " apps active");
             });
-        }).start();
+        });
     }
 
     private void refreshLogs() {
@@ -338,8 +354,7 @@ public class MainActivity extends AppCompatActivity {
             .setCancelable(true)
             .create();
 
-        // Async Background App Loader to prevent UI stutter
-        new Thread(() -> {
+        sWorkerPool.execute(() -> {
             PackageManager pm = getPackageManager();
             List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
             Set<String> currentVips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
@@ -350,13 +365,19 @@ public class MainActivity extends AppCompatActivity {
                 if (getPackageName().equals(ai.packageName)) continue;
 
                 String label = sLabelCache.get(ai.packageName);
-                Drawable icon = sIconCache.get(ai.packageName);
+                Drawable.ConstantState iconState = sIconCache.get(ai.packageName);
+                Drawable icon = iconState != null ? iconState.newDrawable() : null;
                 if (label == null || icon == null) {
                     try {
                         label = pm.getApplicationLabel(ai).toString();
-                        icon = pm.getApplicationIcon(ai);
+                        Drawable rawIcon = pm.getApplicationIcon(ai);
                         sLabelCache.put(ai.packageName, label);
-                        sIconCache.put(ai.packageName, icon);
+                        if (rawIcon.getConstantState() != null) {
+                            sIconCache.put(ai.packageName, rawIcon.getConstantState());
+                            icon = rawIcon.getConstantState().newDrawable();
+                        } else {
+                            icon = rawIcon;
+                        }
                     } catch (Throwable ignored) {
                         continue;
                     }
@@ -378,7 +399,7 @@ public class MainActivity extends AppCompatActivity {
                 pb.setVisibility(View.GONE);
                 rv.setVisibility(View.VISIBLE);
             });
-        }).start();
+        });
 
         dialogView.findViewById(R.id.btnCancelVip).setOnClickListener(v -> dialog.dismiss());
         dialogView.findViewById(R.id.btnSaveVip).setOnClickListener(v -> {
