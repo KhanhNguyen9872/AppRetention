@@ -498,7 +498,18 @@ public class MainActivity extends AppCompatActivity {
                     if (label == null || icon == null) {
                         try {
                             ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
-                            if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+                            boolean isPinned = vipSet.contains(pkg);
+                            boolean isUserApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
+                            boolean isUpdatedSystem = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+                            boolean hasLauncher = false;
+                            try {
+                                hasLauncher = pm.getLaunchIntentForPackage(pkg) != null;
+                            } catch (Throwable ignored) {}
+
+                            if (!isPinned && !isUserApp && !isUpdatedSystem && !hasLauncher) {
+                                continue;
+                            }
+
                             label = pm.getApplicationLabel(appInfo).toString();
                             Drawable rawIcon = pm.getApplicationIcon(appInfo);
                             sLabelCache.put(pkg, label);
@@ -551,6 +562,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
+
+            items.sort((a, b) -> Integer.compare(a.adj, b.adj));
 
             runOnUiThread(() -> {
                 processAdapter.updateList(items);

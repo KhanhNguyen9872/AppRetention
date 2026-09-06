@@ -171,10 +171,24 @@ public final class RootTool {
         List<ProcessInfo> list = new ArrayList<>();
         if (!isRootAvailable()) return list;
 
+        Process p = null;
         try {
-            // Highly optimized single-pass scanner using shell built-in read
-            String script = "for d in /proc/[0-9]*; do [ -r \"$d/oom_score_adj\" ] && [ -r \"$d/cmdline\" ] || continue; read -r c < \"$d/cmdline\" || continue; read -r a < \"$d/oom_score_adj\" || continue; [ -n \"$c\" ] && echo \"${d##*/}:$c:$a\"; done";
-            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", script});
+            String script = "if ps -A -o PID,ARGS >/dev/null 2>&1; then " +
+                    "ps -A -o PID,ARGS | while read -r pid cmd; do " +
+                    "[ \"$pid\" -gt 0 ] 2>/dev/null || continue; " +
+                    "[ -f \"/proc/$pid/oom_score_adj\" ] || continue; " +
+                    "read -r adj < \"/proc/$pid/oom_score_adj\" || continue; " +
+                    "echo \"$pid:$cmd:$adj\"; " +
+                    "done; " +
+                    "else " +
+                    "for d in /proc/[0-9]*; do " +
+                    "[ -f \"$d/oom_score_adj\" ] || continue; " +
+                    "read -r adj < \"$d/oom_score_adj\" || continue; " +
+                    "c=$(cat \"$d/cmdline\" 2>/dev/null | tr '\\0' ' '); " +
+                    "[ -n \"$c\" ] && echo \"${d##*/}:$c:$adj\"; " +
+                    "done; " +
+                    "fi";
+            p = Runtime.getRuntime().exec(new String[]{"su", "-c", script});
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -185,14 +199,30 @@ public final class RootTool {
                             String name = parts[1].trim();
                             int adj = Integer.parseInt(parts[2].trim());
                             if (!name.isEmpty() && !name.startsWith("/") && !name.startsWith("[")) {
-                                list.add(new ProcessInfo(pid, name, adj));
+                                if (name.contains(" ")) {
+                                    name = name.substring(0, name.indexOf(' '));
+                                }
+                                int nullIdx = name.indexOf('\0');
+                                if (nullIdx >= 0) {
+                                    name = name.substring(0, nullIdx);
+                                }
+                                String cleanName = name.trim();
+                                if (!cleanName.isEmpty()) {
+                                    list.add(new ProcessInfo(pid, cleanName, adj));
+                                }
                             }
                         } catch (Throwable ignored) {}
                     }
                 }
             }
-            p.waitFor();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        } finally {
+            if (p != null) {
+                try {
+                    p.destroy();
+                } catch (Throwable ignored) {}
+            }
+        }
         return list;
     }
 }
