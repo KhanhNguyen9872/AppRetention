@@ -57,7 +57,9 @@ public final class KillShieldOpt {
             r.contains("user-requested") ||
             r.contains("crash") ||
             r.contains("anr") ||
-            r.contains("stopped")) {
+            r.contains("stopped") ||
+            r.contains("restrict") ||
+            r.contains("recents")) {
             return false;
         }
 
@@ -107,6 +109,14 @@ public final class KillShieldOpt {
                             Object reasonObj = getArg(0);
                             String reason = reasonObj != null ? reasonObj.toString() : "";
                             Object thisProcess = thisObject();
+
+                            // Never shield restricted apps
+                            try {
+                                ApplicationInfo info = (ApplicationInfo) getField(thisProcess, SystemField.info);
+                                if (info != null && BackgroundRestrictOpt.isRestricted(info.packageName)) {
+                                    return;
+                                }
+                            } catch (Throwable ignored) {}
 
                             if (isUserApp(thisProcess) && isAutomatedKillReason(reason)) {
                                 Object procName = getField(thisProcess, "processName");

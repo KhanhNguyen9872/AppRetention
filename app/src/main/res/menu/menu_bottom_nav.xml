@@ -4,14 +4,17 @@
         android:id="@+id/nav_dashboard"
         android:icon="@drawable/ic_nav_dashboard"
         android:title="@string/nav_dashboard" />
+
     <item
         android:id="@+id/nav_keep_alive"
         android:icon="@drawable/ic_nav_keep_alive"
         android:title="@string/nav_keep_alive" />
+
     <item
         android:id="@+id/nav_controls"
-        android:icon="@drawable/ic_nav_controls"
-        android:title="@string/nav_controls" />
+        android:icon="@drawable/ic_nav_settings"
+        android:title="@string/nav_settings" />
+
     <item
         android:id="@+id/nav_logs"
         android:icon="@drawable/ic_nav_logs"

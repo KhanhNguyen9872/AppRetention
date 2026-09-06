@@ -97,4 +97,18 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="btn_copy_log">Sao chép</string>
     <string name="toast_log_copied">Đã sao chép log vào clipboard</string>
     <string name="toast_log_cleared">Đã xoá nhật ký</string>
+    <string name="nav_settings">Cài đặt</string>
+    <string name="title_settings">Cài đặt &amp; Tối ưu hóa</string>
+    <string name="desc_settings">Quản lý hành vi nền, cấu hình hook hệ thống và chính sách giới hạn</string>
+    <string name="title_immediate_kill">Chặn nền tức thì khi rời màn hình</string>
+    <string name="desc_immediate_kill">Đóng ngay lập tức các ứng dụng trong danh sách Cấm chạy ngầm khi thoát ra màn hình chính hoặc tắt màn hình (không cần chờ xóa đa nhiệm)</string>
+    <string name="mode_keep_alive">Giữ chạy ngầm</string>
+    <string name="mode_restricted">Cấm chạy ngầm</string>
+    <string name="chip_restricted_only">Đang cấm (%d)</string>
+    <string name="badge_restricted">CẤM NỀN</string>
+    <string name="toast_restricted_added">Đã thêm %s vào danh sách Cấm chạy ngầm</string>
+    <string name="toast_restricted_removed">Đã xóa %s khỏi danh sách Cấm chạy ngầm</string>
+    <string name="summary_restricted_desc">Các ứng dụng trong danh sách này sẽ bị chặn và đóng hoàn toàn khi bạn vuốt xóa khỏi Đa nhiệm.</string>
+    <string name="format_restricted_summary">%d ứng dụng</string>
+
 </resources>

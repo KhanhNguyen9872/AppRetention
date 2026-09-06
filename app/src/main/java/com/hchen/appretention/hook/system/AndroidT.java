@@ -58,6 +58,8 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.hchen.appretention.hook.system.opt.ApplyAdjOpt;
+import com.hchen.appretention.hook.system.opt.BackgroundRestrictOpt;
+
 import com.hchen.appretention.hook.system.opt.KillShieldOpt;
 import com.hchen.appretention.hook.system.opt.DeviceIdleOpt;
 import com.hchen.appretention.hook.system.opt.AppHibernationOpt;
@@ -83,6 +85,7 @@ public class AndroidT extends HCBase {
         OomLevelsOpt.init();
         CacheCompaction.init();
         ApplyAdjOpt.init();
+        BackgroundRestrictOpt.init();
         KillShieldOpt.init();
         DeviceIdleOpt.init();
         AppHibernationOpt.init();

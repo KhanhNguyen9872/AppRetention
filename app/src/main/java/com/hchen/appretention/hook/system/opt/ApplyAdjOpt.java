@@ -179,15 +179,32 @@ public class ApplyAdjOpt {
                     if (index == -1) return;
 
                     ApplyAdjOpt.ProcessRecord pr = new ApplyAdjOpt.ProcessRecord(app);
+                    boolean isRestricted = pr.packageName != null && BackgroundRestrictOpt.isRestricted(pr.packageName);
+
+                    if (isRestricted && BackgroundRestrictOpt.isImmediateKillEnabled()) {
+                        Object mState = getField(app, SystemField.mState);
+                        Integer importance = (Integer) callStaticMethod(
+                            ActivityManager$RunningAppProcessInfo,
+                            procStateToImportance,
+                            callMethod(mState, getCurProcState)
+                        );
+                        if (importance != null && importance > ImportanceInfo.IMPORTANCE_VISIBLE) {
+                            BackgroundRestrictOpt.terminatePackage(pr.packageName, "immediate_kill_out_screen");
+                            return;
+                        }
+                    }
+
                     boolean isPerceptibleTierEnabled = SystemPropTool.getProp("persist.hchen.adj.perceptible.enable", true);
                     int perceptibleCount = SystemPropTool.getProp("persist.hchen.adj.perceptible.count", 8);
 
                     boolean isMain = pr.isMainProcess || pr.isolated || pr.isSdkSandbox;
                     HashSet<String> vipPackages = getVipPackages();
-                    boolean isVip = pr.packageName != null && vipPackages.contains(pr.packageName);
+                    boolean isVip = !isRestricted && pr.packageName != null && vipPackages.contains(pr.packageName);
 
                     int adj;
-                    if (isVip) {
+                    if (isRestricted) {
+                        adj = 900; // Demote restricted apps to cached tier
+                    } else if (isVip) {
                         // VIP apps are permanently pinned at ADJ 200 (Total Kill Immunity)
                         adj = isMain ? PERCEPTIBLE_TIER_MIN_ADJ : PERCEPTIBLE_SUB_MIN_ADJ;
                     } else if (isPerceptibleTierEnabled && index < perceptibleCount) {

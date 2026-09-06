@@ -27,4 +27,18 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="btn_copy_log">复制</string>
     <string name="toast_log_copied">已复制日志到剪贴板</string>
     <string name="toast_log_cleared">已清空日志</string>
+    <string name="nav_settings">设置</string>
+    <string name="title_settings">系统与保活设置</string>
+    <string name="desc_settings">管理后台行为、系统钩子配置与进程限制策略</string>
+    <string name="title_immediate_kill">退出屏幕立即结束后台</string>
+    <string name="desc_immediate_kill">针对限制名单中的应用，在离开返回桌面或熄屏时立即终结后台进程（无需等待划掉多任务）</string>
+    <string name="mode_keep_alive">保活列表</string>
+    <string name="mode_restricted">后台限制</string>
+    <string name="chip_restricted_only">已限制 (%d)</string>
+    <string name="badge_restricted">禁止后台</string>
+    <string name="toast_restricted_added">已将 %s 加入后台限制名单</string>
+    <string name="toast_restricted_removed">已将 %s 移出后台限制名单</string>
+    <string name="summary_restricted_desc">此列表中的应用在多任务界面被划掉清除时将立即被彻底终止。</string>
+    <string name="format_restricted_summary">%d 个应用</string>
+
 </resources>

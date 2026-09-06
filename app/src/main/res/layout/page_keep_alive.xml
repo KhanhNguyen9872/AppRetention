@@ -6,6 +6,41 @@
     android:orientation="vertical"
     android:background="@color/bg_dark">
 
+    <!-- Mode Selector: Keep-Alive vs Restricted -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleAppMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="4dp"
+        app:singleSelection="true"
+        app:selectionRequired="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnModeKeepAlive"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/mode_keep_alive"
+            android:textSize="12sp"
+            app:icon="@drawable/ic_nav_keep_alive"
+            app:iconSize="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnModeRestricted"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/mode_restricted"
+            android:textSize="12sp"
+            app:icon="@drawable/ic_kill"
+            app:iconSize="16dp" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
     <!-- Top Summary Card -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
@@ -16,7 +51,7 @@
         app:cardCornerRadius="14dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="6dp"
         android:layout_marginBottom="10dp">
 
         <LinearLayout
@@ -36,12 +71,13 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Keep-Alive: 0 apps"
+                    android:text="0 apps configured"
                     android:textColor="@color/text_title"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvBadgeMode"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/badge_keep_alive_locked"
@@ -56,6 +92,7 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/tvModeDesc"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
@@ -133,11 +170,11 @@
                 android:textSize="11.5sp" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipKeepAliveOnly"
+                android:id="@+id/chipActiveOnly"
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Keep-Alive (0)"
+                android:text="Configured (0)"
                 android:textSize="11.5sp" />
         </com.google.android.material.chip.ChipGroup>
     </LinearLayout>

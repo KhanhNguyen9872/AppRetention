@@ -97,4 +97,18 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="btn_copy_log">Copy</string>
     <string name="toast_log_copied">Logs copied to clipboard</string>
     <string name="toast_log_cleared">Logs cleared</string>
+    <string name="nav_settings">Settings</string>
+    <string name="title_settings">System &amp; Retention Settings</string>
+    <string name="desc_settings">Configure background hooks, retention engines, and process restriction policies</string>
+    <string name="title_immediate_kill">Immediate Kill on App Exit</string>
+    <string name="desc_immediate_kill">Immediately terminate restricted apps upon leaving to home screen or screen off (no need to wait for recents swipe-out)</string>
+    <string name="mode_keep_alive">Keep-Alive</string>
+    <string name="mode_restricted">Restricted</string>
+    <string name="chip_restricted_only">Restricted (%d)</string>
+    <string name="badge_restricted">RESTRICTED</string>
+    <string name="toast_restricted_added">Added %s to Background Restriction</string>
+    <string name="toast_restricted_removed">Removed %s from Background Restriction</string>
+    <string name="summary_restricted_desc">Apps in this list will be terminated immediately when swiped out from Recents.</string>
+    <string name="format_restricted_summary">%d apps restricted</string>
+
 </resources>

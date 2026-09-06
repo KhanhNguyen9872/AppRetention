@@ -43,6 +43,21 @@
                 android:ellipsize="end" />
 
             <TextView
+                android:id="@+id/tvBadgeRestricted"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/badge_restricted"
+                android:textColor="#EF4444"
+                android:background="@drawable/bg_badge_red"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="1dp"
+                android:paddingBottom="1dp"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+            <TextView
                 android:id="@+id/tvBadgeLocked"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

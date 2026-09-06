@@ -33,6 +33,9 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.button.MaterialButtonToggleGroup;
+
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
@@ -54,6 +57,8 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
     private static final String PREF_NAME = "AppRetentionConfig";
     private static final String KEY_VIP_PACKAGES = "persist.hchen.adj.vip_packages";
+    private static final String KEY_RESTRICT_PACKAGES = "persist.hchen.restrict.packages";
+    private static final String KEY_RESTRICT_IMMEDIATE = "persist.hchen.restrict.immediate_kill";
     private static final String KEY_TIERED_ADJ = "persist.hchen.adj.perceptible.enable";
     private static final String KEY_KILL_SHIELD = "persist.hchen.killshield.enable";
     private static final String KEY_DOZE = "persist.hchen.doze.opt.enable";
@@ -100,20 +105,26 @@ public class MainActivity extends AppCompatActivity {
     private ProcessAdapter processAdapter;
     private final List<ProcessItem> processList = new ArrayList<>();
 
-    // Tab 2: Keep-Alive Dedicated Page UI elements
+    // Tab 2: Keep-Alive & Restricted Dedicated Page UI elements
+    private MaterialButtonToggleGroup toggleAppMode;
+    private MaterialButton btnModeKeepAlive;
+    private MaterialButton btnModeRestricted;
     private TextView tvKeepAliveSummaryCount;
+    private TextView tvBadgeMode;
+    private TextView tvModeDesc;
     private EditText etSearchKeepAlive;
     private ImageView btnClearSearch;
     private ChipGroup chipGroupFilter;
     private Chip chipAllApps;
-    private Chip chipKeepAliveOnly;
+    private Chip chipActiveOnly;
     private ProgressBar pbLoadingKeepAlive;
     private RecyclerView rvKeepAliveApps;
     private KeepAliveAdapter keepAliveAdapter;
     private final List<AppItem> allInstalledApps = new ArrayList<>();
     private boolean isAppsLoaded = false;
 
-    // Tab 3: Retention Controls UI elements
+    // Tab 3: Settings UI elements
+    private MaterialSwitch switchImmediateKill;
     private MaterialSwitch switchTieredAdj;
     private MaterialSwitch switchKillShield;
     private MaterialSwitch switchDoze;
@@ -259,31 +270,70 @@ public class MainActivity extends AppCompatActivity {
             rvProcesses.setAdapter(processAdapter);
         }
 
-        // --- Tab 2: Keep-Alive Page Initialization ---
+        // --- Tab 2: Keep-Alive & Restricted Page Initialization ---
+        toggleAppMode = findViewById(R.id.toggleAppMode);
+        btnModeKeepAlive = findViewById(R.id.btnModeKeepAlive);
+        btnModeRestricted = findViewById(R.id.btnModeRestricted);
         tvKeepAliveSummaryCount = findViewById(R.id.tvKeepAliveSummaryCount);
+        tvBadgeMode = findViewById(R.id.tvBadgeMode);
+        tvModeDesc = findViewById(R.id.tvModeDesc);
         etSearchKeepAlive = findViewById(R.id.etSearchKeepAlive);
         btnClearSearch = findViewById(R.id.btnClearSearch);
         chipGroupFilter = findViewById(R.id.chipGroupFilter);
         chipAllApps = findViewById(R.id.chipAllApps);
-        chipKeepAliveOnly = findViewById(R.id.chipKeepAliveOnly);
+        chipActiveOnly = findViewById(R.id.chipActiveOnly);
         pbLoadingKeepAlive = findViewById(R.id.pbLoadingKeepAlive);
         rvKeepAliveApps = findViewById(R.id.rvKeepAliveApps);
+
+        if (toggleAppMode != null) {
+            toggleAppMode.check(R.id.btnModeKeepAlive);
+            toggleAppMode.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+                if (isChecked) {
+                    int mode = (checkedId == R.id.btnModeRestricted) ? KeepAliveAdapter.MODE_RESTRICTED : KeepAliveAdapter.MODE_KEEP_ALIVE;
+                    if (keepAliveAdapter != null) {
+                        keepAliveAdapter.setMode(mode);
+                    }
+                    updateKeepAliveHeader();
+                }
+            });
+        }
 
         if (rvKeepAliveApps != null) {
             rvKeepAliveApps.setLayoutManager(new LinearLayoutManager(this));
             keepAliveAdapter = new KeepAliveAdapter(allInstalledApps);
-            keepAliveAdapter.setOnKeepAliveChangeListener((item, isPinned, position) -> {
+            keepAliveAdapter.setOnAppStateChangeListener((item, mode, enabled, position) -> {
                 Set<String> vipSet = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
-                if (isPinned) {
-                    vipSet.add(item.packageName);
-                    Toast.makeText(this, getString(R.string.toast_keep_alive_added, item.appName), Toast.LENGTH_SHORT).show();
+                Set<String> restrictSet = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
+
+                if (mode == KeepAliveAdapter.MODE_KEEP_ALIVE) {
+                    if (enabled) {
+                        vipSet.add(item.packageName);
+                        restrictSet.remove(item.packageName);
+                        item.isRestricted = false;
+                        Toast.makeText(this, getString(R.string.toast_keep_alive_added, item.appName), Toast.LENGTH_SHORT).show();
+                    } else {
+                        vipSet.remove(item.packageName);
+                        Toast.makeText(this, getString(R.string.toast_keep_alive_removed, item.appName), Toast.LENGTH_SHORT).show();
+                    }
                 } else {
-                    vipSet.remove(item.packageName);
-                    Toast.makeText(this, getString(R.string.toast_keep_alive_removed, item.appName), Toast.LENGTH_SHORT).show();
+                    if (enabled) {
+                        restrictSet.add(item.packageName);
+                        vipSet.remove(item.packageName);
+                        item.isVip = false;
+                        Toast.makeText(this, getString(R.string.toast_restricted_added, item.appName), Toast.LENGTH_SHORT).show();
+                    } else {
+                        restrictSet.remove(item.packageName);
+                        Toast.makeText(this, getString(R.string.toast_restricted_removed, item.appName), Toast.LENGTH_SHORT).show();
+                    }
                 }
-                prefs.edit().putStringSet(KEY_VIP_PACKAGES, vipSet).apply();
-                String joined = String.join(",", vipSet);
-                RootTool.setProp(KEY_VIP_PACKAGES, joined);
+
+                prefs.edit()
+                        .putStringSet(KEY_VIP_PACKAGES, vipSet)
+                        .putStringSet(KEY_RESTRICT_PACKAGES, restrictSet)
+                        .apply();
+
+                RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
+                RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
 
                 updateKeepAliveHeader();
                 refreshRunningProcesses();
@@ -323,8 +373,8 @@ public class MainActivity extends AppCompatActivity {
         if (chipGroupFilter != null) {
             chipGroupFilter.setOnCheckedStateChangeListener((group, checkedIds) -> {
                 if (keepAliveAdapter != null) {
-                    boolean keepAliveOnly = checkedIds.contains(R.id.chipKeepAliveOnly);
-                    keepAliveAdapter.setFilterKeepAliveOnly(keepAliveOnly);
+                    boolean activeOnly = checkedIds.contains(R.id.chipActiveOnly);
+                    keepAliveAdapter.setFilterActiveOnly(activeOnly);
                 }
             });
         }
@@ -410,6 +460,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupSwitches() {
+        switchImmediateKill = findViewById(R.id.switchImmediateKill);
+        bindSwitch(switchImmediateKill, KEY_RESTRICT_IMMEDIATE, false);
         bindSwitch(switchTieredAdj, KEY_TIERED_ADJ, true);
         bindSwitch(switchKillShield, KEY_KILL_SHIELD, true);
         bindSwitch(switchDoze, KEY_DOZE, true);
@@ -474,16 +526,45 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateKeepAliveHeader() {
         if (keepAliveAdapter == null) return;
+        int currentMode = keepAliveAdapter.getMode();
         int vipCount = keepAliveAdapter.getVipCount();
+        int restrictedCount = keepAliveAdapter.getRestrictedCount();
         int totalCount = keepAliveAdapter.getTotalCount();
-        if (tvKeepAliveSummaryCount != null) {
-            tvKeepAliveSummaryCount.setText(getString(R.string.format_keep_alive_summary, vipCount));
+
+        if (currentMode == KeepAliveAdapter.MODE_KEEP_ALIVE) {
+            if (tvKeepAliveSummaryCount != null) {
+                tvKeepAliveSummaryCount.setText(getString(R.string.format_keep_alive_summary, vipCount));
+            }
+            if (tvBadgeMode != null) {
+                tvBadgeMode.setText(R.string.badge_keep_alive_locked);
+                tvBadgeMode.setTextColor(0xFF22C55E);
+                tvBadgeMode.setBackgroundResource(R.drawable.bg_badge_green);
+            }
+            if (tvModeDesc != null) {
+                tvModeDesc.setText(R.string.tab_keep_alive_desc);
+            }
+            if (chipActiveOnly != null) {
+                chipActiveOnly.setText(getString(R.string.chip_keep_alive_only, vipCount));
+            }
+        } else {
+            if (tvKeepAliveSummaryCount != null) {
+                tvKeepAliveSummaryCount.setText(getString(R.string.format_restricted_summary, restrictedCount));
+            }
+            if (tvBadgeMode != null) {
+                tvBadgeMode.setText(R.string.badge_restricted);
+                tvBadgeMode.setTextColor(0xFFEF4444);
+                tvBadgeMode.setBackgroundResource(R.drawable.bg_badge_red);
+            }
+            if (tvModeDesc != null) {
+                tvModeDesc.setText(R.string.summary_restricted_desc);
+            }
+            if (chipActiveOnly != null) {
+                chipActiveOnly.setText(getString(R.string.chip_restricted_only, restrictedCount));
+            }
         }
+
         if (chipAllApps != null) {
             chipAllApps.setText(getString(R.string.chip_all_apps, totalCount));
-        }
-        if (chipKeepAliveOnly != null) {
-            chipKeepAliveOnly.setText(getString(R.string.chip_keep_alive_only, vipCount));
         }
     }
 
@@ -500,12 +581,14 @@ public class MainActivity extends AppCompatActivity {
             PackageManager pm = getPackageManager();
             List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
             Set<String> currentVips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
+            Set<String> currentRestricted = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
 
             List<AppItem> loadedList = new ArrayList<>();
             for (ApplicationInfo ai : installed) {
                 if (getPackageName().equals(ai.packageName)) continue;
 
                 boolean isPinned = currentVips.contains(ai.packageName);
+                boolean isRestricted = currentRestricted.contains(ai.packageName);
                 boolean isUserApp = (ai.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
                 boolean isUpdatedSystem = (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
                 boolean hasLauncher = false;
@@ -513,7 +596,7 @@ public class MainActivity extends AppCompatActivity {
                     hasLauncher = pm.getLaunchIntentForPackage(ai.packageName) != null;
                 } catch (Throwable ignored) {}
 
-                if (!isPinned && !isUserApp && !isUpdatedSystem && !hasLauncher) {
+                if (!isPinned && !isRestricted && !isUserApp && !isUpdatedSystem && !hasLauncher) {
                     continue;
                 }
 
@@ -536,11 +619,12 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                loadedList.add(new AppItem(label, ai.packageName, icon, isPinned));
+                loadedList.add(new AppItem(label, ai.packageName, icon, isPinned, isRestricted));
             }
 
             loadedList.sort((a, b) -> {
                 if (a.isVip != b.isVip) return a.isVip ? -1 : 1;
+                if (a.isRestricted != b.isRestricted) return a.isRestricted ? -1 : 1;
                 return a.appName.compareToIgnoreCase(b.appName);
             });
 

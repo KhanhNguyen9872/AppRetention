@@ -17,15 +17,19 @@ import java.util.List;
 
 public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.ViewHolder> {
 
-    public interface OnKeepAliveChangeListener {
-        void onKeepAliveChanged(AppItem item, boolean isPinned, int position);
+    public static final int MODE_KEEP_ALIVE = 0;
+    public static final int MODE_RESTRICTED = 1;
+
+    public interface OnAppStateChangeListener {
+        void onAppStateChanged(AppItem item, int mode, boolean enabled, int position);
     }
 
     private final List<AppItem> fullList = new ArrayList<>();
     private final List<AppItem> displayList = new ArrayList<>();
-    private OnKeepAliveChangeListener listener;
+    private OnAppStateChangeListener listener;
     private String currentQuery = "";
-    private boolean filterKeepAliveOnly = false;
+    private boolean filterActiveOnly = false;
+    private int currentMode = MODE_KEEP_ALIVE;
 
     public KeepAliveAdapter(List<AppItem> list) {
         if (list != null) {
@@ -34,8 +38,19 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
         }
     }
 
-    public void setOnKeepAliveChangeListener(OnKeepAliveChangeListener listener) {
+    public void setOnAppStateChangeListener(OnAppStateChangeListener listener) {
         this.listener = listener;
+    }
+
+    public void setMode(int mode) {
+        if (this.currentMode != mode) {
+            this.currentMode = mode;
+            applyFilter();
+        }
+    }
+
+    public int getMode() {
+        return currentMode;
     }
 
     public void setAllApps(List<AppItem> list) {
@@ -51,8 +66,8 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
         applyFilter();
     }
 
-    public void setFilterKeepAliveOnly(boolean keepAliveOnly) {
-        this.filterKeepAliveOnly = keepAliveOnly;
+    public void setFilterActiveOnly(boolean activeOnly) {
+        this.filterActiveOnly = activeOnly;
         applyFilter();
     }
 
@@ -64,6 +79,18 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
         return count;
     }
 
+    public int getRestrictedCount() {
+        int count = 0;
+        for (AppItem item : fullList) {
+            if (item.isRestricted) count++;
+        }
+        return count;
+    }
+
+    public int getActiveCount() {
+        return currentMode == MODE_KEEP_ALIVE ? getVipCount() : getRestrictedCount();
+    }
+
     public int getTotalCount() {
         return fullList.size();
     }
@@ -71,8 +98,9 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
     public void applyFilter() {
         displayList.clear();
         for (AppItem item : fullList) {
-            if (filterKeepAliveOnly && !item.isVip) {
-                continue;
+            if (filterActiveOnly) {
+                if (currentMode == MODE_KEEP_ALIVE && !item.isVip) continue;
+                if (currentMode == MODE_RESTRICTED && !item.isRestricted) continue;
             }
             if (!currentQuery.isEmpty()) {
                 boolean matchName = item.appName != null && item.appName.toLowerCase().contains(currentQuery);
@@ -102,19 +130,36 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
             holder.ivIcon.setImageDrawable(item.icon);
         }
 
-        holder.tvBadgeLocked.setVisibility(item.isVip ? View.VISIBLE : View.GONE);
-        holder.switchKeepAlive.setChecked(item.isVip);
+        if (currentMode == MODE_KEEP_ALIVE) {
+            holder.tvBadgeLocked.setVisibility(item.isVip ? View.VISIBLE : View.GONE);
+            holder.tvBadgeRestricted.setVisibility(View.GONE);
+            holder.switchKeepAlive.setChecked(item.isVip);
+        } else {
+            holder.tvBadgeLocked.setVisibility(View.GONE);
+            holder.tvBadgeRestricted.setVisibility(item.isRestricted ? View.VISIBLE : View.GONE);
+            holder.switchKeepAlive.setChecked(item.isRestricted);
+        }
 
         View.OnClickListener toggleAction = v -> {
             int pos = holder.getBindingAdapterPosition();
             if (pos != RecyclerView.NO_POSITION && pos < displayList.size()) {
                 AppItem currentItem = displayList.get(pos);
-                boolean newState = !currentItem.isVip;
-                currentItem.isVip = newState;
-                holder.switchKeepAlive.setChecked(newState);
-                holder.tvBadgeLocked.setVisibility(newState ? View.VISIBLE : View.GONE);
-                if (listener != null) {
-                    listener.onKeepAliveChanged(currentItem, newState, pos);
+                if (currentMode == MODE_KEEP_ALIVE) {
+                    boolean newState = !currentItem.isVip;
+                    currentItem.isVip = newState;
+                    if (newState) currentItem.isRestricted = false;
+                    notifyItemChanged(pos);
+                    if (listener != null) {
+                        listener.onAppStateChanged(currentItem, MODE_KEEP_ALIVE, newState, pos);
+                    }
+                } else {
+                    boolean newState = !currentItem.isRestricted;
+                    currentItem.isRestricted = newState;
+                    if (newState) currentItem.isVip = false;
+                    notifyItemChanged(pos);
+                    if (listener != null) {
+                        listener.onAppStateChanged(currentItem, MODE_RESTRICTED, newState, pos);
+                    }
                 }
             }
         };
@@ -129,7 +174,7 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView ivIcon;
-        TextView tvName, tvPackage, tvBadgeLocked;
+        TextView tvName, tvPackage, tvBadgeLocked, tvBadgeRestricted;
         MaterialSwitch switchKeepAlive;
 
         ViewHolder(@NonNull View itemView) {
@@ -138,6 +183,7 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
             tvName = itemView.findViewById(R.id.tvAppName);
             tvPackage = itemView.findViewById(R.id.tvAppPackage);
             tvBadgeLocked = itemView.findViewById(R.id.tvBadgeLocked);
+            tvBadgeRestricted = itemView.findViewById(R.id.tvBadgeRestricted);
             switchKeepAlive = itemView.findViewById(R.id.switchKeepAlive);
         }
     }
