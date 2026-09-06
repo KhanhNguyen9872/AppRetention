@@ -68,6 +68,93 @@ public final class RootTool {
         return null;
     }
 
+    public static void resetRootCheck() {
+        sHasRoot = null;
+    }
+
+    public static boolean requestRoot() {
+        sHasRoot = null;
+        return isRootAvailable();
+    }
+
+    public static class HardwareStats {
+        public String cpuLine;
+        public long memTotalBytes;
+        public long memAvailableBytes;
+        public long storageTotalBytes;
+        public long storageUsedBytes;
+        public long storageAvailableBytes;
+    }
+
+    public static HardwareStats getHardwareStats() {
+        if (!isRootAvailable()) return null;
+        Process p = null;
+        try {
+            String script = "head -n 1 /proc/stat 2>/dev/null || cat /proc/stat; echo '---MEM---'; head -n 5 /proc/meminfo 2>/dev/null || cat /proc/meminfo; echo '---DF---'; df -k /data";
+            p = Runtime.getRuntime().exec(new String[]{"su", "-c", script});
+            HardwareStats stats = new HardwareStats();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line;
+                int section = 0;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.isEmpty()) continue;
+                    if (line.equals("---MEM---")) {
+                        section = 1;
+                        continue;
+                    } else if (line.equals("---DF---")) {
+                        section = 2;
+                        continue;
+                    }
+
+                    if (section == 0) {
+                        if (line.startsWith("cpu ")) {
+                            stats.cpuLine = line;
+                        }
+                    } else if (section == 1) {
+                        String[] parts = line.split(":");
+                        if (parts.length == 2) {
+                            String key = parts[0].trim();
+                            String valStr = parts[1].replace("kB", "").trim();
+                            try {
+                                long val = Long.parseLong(valStr);
+                                if ("MemTotal".equalsIgnoreCase(key)) {
+                                    stats.memTotalBytes = val * 1024L;
+                                } else if ("MemAvailable".equalsIgnoreCase(key)) {
+                                    stats.memAvailableBytes = val * 1024L;
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                    } else if (section == 2) {
+                        String[] parts = line.split("\\s+");
+                        if (parts.length >= 6 && !parts[0].startsWith("Filesystem")) {
+                            try {
+                                stats.storageTotalBytes = Long.parseLong(parts[1]) * 1024L;
+                                stats.storageUsedBytes = Long.parseLong(parts[2]) * 1024L;
+                                stats.storageAvailableBytes = Long.parseLong(parts[3]) * 1024L;
+                            } catch (Throwable ignored) {}
+                        } else if (parts.length >= 4 && parts[0].matches("\\d+")) {
+                            try {
+                                stats.storageTotalBytes = Long.parseLong(parts[0]) * 1024L;
+                                stats.storageUsedBytes = Long.parseLong(parts[1]) * 1024L;
+                                stats.storageAvailableBytes = Long.parseLong(parts[2]) * 1024L;
+                            } catch (Throwable ignored) {}
+                        }
+                    }
+                }
+            }
+            return stats;
+        } catch (Throwable ignored) {
+        } finally {
+            if (p != null) {
+                try {
+                    p.destroy();
+                } catch (Throwable ignored) {}
+            }
+        }
+        return null;
+    }
+
     public static class ProcessInfo {
         public final int pid;
         public final String processName;

@@ -123,19 +123,7 @@ public class MainActivity extends AppCompatActivity {
 
         initViews();
         setupSwitches();
-        refreshAll();
-
-        // Check root status
-        sWorkerPool.execute(() -> {
-            boolean hasRoot = RootTool.isRootAvailable();
-            runOnUiThread(() -> {
-                if (hasRoot) {
-                    tvModeDetail.setText("Scope: android (system_server) • Root: Active (KernelSU/Magisk)");
-                } else {
-                    tvModeDetail.setText("Scope: android (system_server) • Root: Standard Mode");
-                }
-            });
-        });
+        checkAndPromptRoot();
     }
 
     @Override
@@ -173,6 +161,15 @@ public class MainActivity extends AppCompatActivity {
         tvStatusBadge = findViewById(R.id.tvStatusBadge);
         tvModeDetail = findViewById(R.id.tvModeDetail);
         tvShieldCount = findViewById(R.id.tvShieldCount);
+        if (tvModeDetail != null) {
+            tvModeDetail.setOnClickListener(v -> {
+                if (!RootTool.isRootAvailable()) {
+                    checkAndPromptRoot();
+                } else {
+                    Toast.makeText(this, "Root: Hoạt động với đầy đủ quyền Kernel & System", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
 
         // Hardware monitors
         tvRamDetails = findViewById(R.id.tvRamDetails);
@@ -231,6 +228,41 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void checkAndPromptRoot() {
+        if (tvModeDetail != null) {
+            tvModeDetail.setText("Scope: android (system_server) • Root: Requesting superuser...");
+        }
+        sWorkerPool.execute(() -> {
+            boolean hasRoot = RootTool.requestRoot();
+            runOnUiThread(() -> {
+                if (hasRoot) {
+                    tvModeDetail.setText("Scope: android (system_server) • Root: Active (KernelSU/Magisk/APatch)");
+                    tvModeDetail.setTextColor(0xFF22C55E);
+                } else {
+                    tvModeDetail.setText("Scope: android (system_server) • Root: Not Granted (Limited Mode)");
+                    tvModeDetail.setTextColor(0xFFF59E0B);
+                    showRootExplanationDialog();
+                }
+                refreshAll();
+            });
+        });
+    }
+
+    private void showRootExplanationDialog() {
+        if (isFinishing() || isDestroyed()) return;
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Quyền Root Chưa Được Cấp")
+            .setMessage("AppRetention vẫn đang hoạt động ổn định ở tầng System Framework (các cơ chế khóa ADJ 200 và chống kill ngầm của module Xposed vẫn có hiệu lực).\n\nTuy nhiên, quyền Root là cần thiết để:\n• Đọc chính xác 100% tài nguyên phần cứng (CPU kernel load, RAM meminfo, Storage df).\n• Quét danh sách tiến trình chạy ngầm & OOM Score ADJ theo thời gian thực.\n• Đồng bộ các thuộc tính hệ thống (persist properties) ngay lập tức.\n\nBạn có thể cấp quyền trong Magisk, KernelSU hoặc APatch bất cứ lúc nào.")
+            .setPositiveButton("Thử lại / Cấp quyền", (dialog, which) -> {
+                RootTool.resetRootCheck();
+                checkAndPromptRoot();
+            })
+            .setNegativeButton("Tiếp tục (Chế độ hạn chế)", (dialog, which) -> dialog.dismiss())
+            .setCancelable(true)
+            .show();
+    }
+
     private void refreshAll() {
         updateHardwareStats();
         updateVipSummary();
@@ -241,24 +273,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateHardwareStats() {
         sWorkerPool.execute(() -> {
-            // 1. RAM Calculation
-            long totalRam = 0;
-            try (BufferedReader br = new BufferedReader(new FileReader("/proc/meminfo"))) {
-                String line = br.readLine();
-                if (line != null) {
-                    String[] parts = line.split("\\s+");
-                    if (parts.length >= 2) {
-                        totalRam = Long.parseLong(parts[1]) * 1024L;
-                    }
-                }
-            } catch (Throwable ignored) {}
+            // Read all root hardware metrics in a single high-performance atomic query
+            RootTool.HardwareStats rootStats = RootTool.getHardwareStats();
 
-            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-            if (am != null) am.getMemoryInfo(mi);
+            // 1. RAM Calculation (Root /proc/meminfo with 100% precision, fallback to ActivityManager)
+            long totalRamBytes = 0;
+            long availRamBytes = 0;
+            if (rootStats != null && rootStats.memTotalBytes > 0) {
+                totalRamBytes = rootStats.memTotalBytes;
+                availRamBytes = rootStats.memAvailableBytes;
+            } else {
+                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+                if (am != null) am.getMemoryInfo(mi);
+                totalRamBytes = mi.totalMem;
+                availRamBytes = mi.availMem;
+            }
 
-            long totalRamBytes = totalRam > 0 ? totalRam : mi.totalMem;
-            long availRamBytes = mi.availMem;
             long usedRamBytes = Math.max(0, totalRamBytes - availRamBytes);
             int ramPercent = (int) Math.min(100, (usedRamBytes * 100) / (totalRamBytes > 0 ? totalRamBytes : 1));
             double usedRamGb = usedRamBytes / (1024.0 * 1024.0 * 1024.0);
@@ -266,19 +297,31 @@ public class MainActivity extends AppCompatActivity {
             double availRamGb = availRamBytes / (1024.0 * 1024.0 * 1024.0);
             int discount = (int) Math.round(totalRamGb) >= 15 ? 5 : ((int) Math.round(totalRamGb) >= 11 ? 4 : 3);
 
-            // 2. CPU Calculation
-            int cpuPercent = readCpuUsage();
+            // 2. CPU Calculation (Root /proc/stat atomic reading)
+            int cpuPercent = readCpuUsage(rootStats != null ? rootStats.cpuLine : null);
             int cores = Runtime.getRuntime().availableProcessors();
 
-            // 3. Storage Calculation
-            File dataDir = Environment.getDataDirectory();
-            StatFs stat = new StatFs(dataDir.getPath());
-            long blockSize = stat.getBlockSizeLong();
-            long totalBlocks = stat.getBlockCountLong();
-            long availBlocks = stat.getAvailableBlocksLong();
-            long totalStorageBytes = totalBlocks * blockSize;
-            long freeStorageBytes = availBlocks * blockSize;
-            long usedStorageBytes = Math.max(0, totalStorageBytes - freeStorageBytes);
+            // 3. Storage Calculation (Root df /data filesystem statistics, fallback to StatFs)
+            long totalStorageBytes = 0;
+            long usedStorageBytes = 0;
+            long freeStorageBytes = 0;
+            if (rootStats != null && rootStats.storageTotalBytes > 0) {
+                totalStorageBytes = rootStats.storageTotalBytes;
+                usedStorageBytes = rootStats.storageUsedBytes;
+                freeStorageBytes = rootStats.storageAvailableBytes;
+            } else {
+                try {
+                    File dataDir = Environment.getDataDirectory();
+                    StatFs stat = new StatFs(dataDir.getPath());
+                    long blockSize = stat.getBlockSizeLong();
+                    long totalBlocks = stat.getBlockCountLong();
+                    long availBlocks = stat.getAvailableBlocksLong();
+                    totalStorageBytes = totalBlocks * blockSize;
+                    freeStorageBytes = availBlocks * blockSize;
+                    usedStorageBytes = Math.max(0, totalStorageBytes - freeStorageBytes);
+                } catch (Throwable ignored) {}
+            }
+
             int storagePercent = (int) Math.min(100, (usedStorageBytes * 100) / (totalStorageBytes > 0 ? totalStorageBytes : 1));
             double usedStorageGb = usedStorageBytes / (1024.0 * 1024.0 * 1024.0);
             double totalStorageGb = totalStorageBytes / (1024.0 * 1024.0 * 1024.0);
@@ -349,8 +392,8 @@ public class MainActivity extends AppCompatActivity {
         return null;
     }
 
-    private int readCpuUsage() {
-        String line = getCpuStatLine();
+    private int readCpuUsage(String prefetchedCpuLine) {
+        String line = prefetchedCpuLine != null ? prefetchedCpuLine : getCpuStatLine();
         if (line != null) {
             long[] stats = parseCpuLine(line);
             if (stats != null) {
