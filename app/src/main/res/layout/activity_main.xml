@@ -1,627 +1,136 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="@color/bg_dark">
 
+    <!-- Top AppBar / Toolbar -->
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/bg_dark"
-        app:elevation="0dp">
+        android:background="@color/bg_dark">
 
-        <com.google.android.material.appbar.MaterialToolbar
+        <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:contentInsetStart="16dp"
-            app:contentInsetStartWithNavigation="0dp">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <ImageView
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:src="@mipmap/ic_launcher"
-                    android:contentDescription="@string/app_name"
-                    android:layout_marginEnd="12dp" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/app_name"
-                        android:textColor="@color/text_title"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Xposed API 101 • Android 16"
-                        android:textColor="@color/text_body"
-                        android:textSize="11sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnGithub"
-                style="@style/Widget.Material3.Button.IconButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="end|center_vertical"
-                android:layout_marginEnd="12dp"
-                app:icon="@drawable/ic_github"
-                app:iconTint="@color/text_title"
-                app:iconSize="24dp"
-                android:contentDescription="GitHub Repository" />
-        </com.google.android.material.appbar.MaterialToolbar>
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipeRefresh"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <androidx.core.widget.NestedScrollView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:background="@color/bg_dark">
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingEnd="16dp">
 
-                <!-- 1. System Status Card (Clean & Compact, No wasted vertical space) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@mipmap/ic_launcher"
+                    android:contentDescription="App Icon"
+                    android:layout_marginEnd="10dp" />
+
+                <TextView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/card_dark"
+                    android:layout_weight="1"
+                    android:text="@string/app_name"
+                    android:textColor="@color/text_title"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvAppVersion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="v5.2.4"
+                    android:textColor="@color/primary_accent"
+                    android:background="@drawable/bg_badge_green"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnGithub"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="GitHub"
+                    android:textColor="@color/text_title"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/card_inner"
                     app:strokeColor="@color/card_stroke"
                     app:strokeWidth="1dp"
-                    app:cardCornerRadius="16dp"
-                    android:layout_marginBottom="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="8dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/title_system_framework"
-                                android:textColor="@color/text_title"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tvStatusBadge"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/badge_status_active"
-                                android:textColor="@color/accent_green"
-                                android:background="@drawable/bg_badge_green"
-                                android:paddingStart="10dp"
-                                android:paddingEnd="10dp"
-                                android:paddingTop="4dp"
-                                android:paddingBottom="4dp"
-                                android:textSize="12sp"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/tvModeDetail"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/status_root_detecting"
-                            android:textColor="@color/text_body"
-                            android:textSize="13sp" />
-
-                        <TextView
-                            android:id="@+id/tvShieldCount"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="@string/status_killshield_active"
-                            android:textColor="@color/primary_accent"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 2. Hardware Resource Monitor (RAM, CPU, Storage with Progress Bars) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/card_dark"
-                    app:strokeColor="@color/card_stroke"
-                    app:strokeWidth="1dp"
-                    app:cardCornerRadius="16dp"
-                    android:layout_marginBottom="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="14dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/title_hardware_monitor"
-                                android:textColor="@color/text_title"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tvRefreshIndicator"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/label_auto_refresh"
-                                android:textColor="@color/primary_accent"
-                                android:background="@color/card_inner"
-                                android:paddingStart="8dp"
-                                android:paddingEnd="8dp"
-                                android:paddingTop="3dp"
-                                android:paddingBottom="3dp"
-                                android:textSize="11sp" />
-                        </LinearLayout>
-
-                        <!-- RAM Monitor -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:layout_marginBottom="4dp">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/label_ram_memory"
-                                android:textColor="@color/text_title"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tvRamDetails"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="end"
-                                android:text="-- / -- (0%)"
-                                android:textColor="@color/accent_cyan"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-
-                        <com.google.android.material.progressindicator.LinearProgressIndicator
-                            android:id="@+id/pbRam"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="0"
-                            app:trackColor="@color/card_inner"
-                            app:indicatorColor="@color/accent_cyan"
-                            app:trackCornerRadius="4dp"
-                            app:trackThickness="8dp"
-                            android:layout_marginBottom="4dp" />
-
-                        <TextView
-                            android:id="@+id/tvRamSubtext"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Available: -- GB • LMKD Tuning: --"
-                            android:textColor="@color/text_muted"
-                            android:textSize="11sp"
-                            android:layout_marginBottom="14dp" />
-
-                        <!-- CPU Monitor -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:layout_marginBottom="4dp">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/label_cpu_processor"
-                                android:textColor="@color/text_title"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tvCpuDetails"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="end"
-                                android:text="--% Load"
-                                android:textColor="@color/accent_amber"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-
-                        <com.google.android.material.progressindicator.LinearProgressIndicator
-                            android:id="@+id/pbCpu"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="0"
-                            app:trackColor="@color/card_inner"
-                            app:indicatorColor="@color/accent_amber"
-                            app:trackCornerRadius="4dp"
-                            app:trackThickness="8dp"
-                            android:layout_marginBottom="4dp" />
-
-                        <TextView
-                            android:id="@+id/tvCpuSubtext"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Cores: -- • Real-time load from /proc/stat"
-                            android:textColor="@color/text_muted"
-                            android:textSize="11sp"
-                            android:layout_marginBottom="14dp" />
-
-                        <!-- Storage Monitor -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:layout_marginBottom="4dp">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/label_internal_storage"
-                                android:textColor="@color/text_title"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tvStorageDetails"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="end"
-                                android:text="-- / -- (0%)"
-                                android:textColor="@color/primary_accent"
-                                android:textSize="13sp"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-
-                        <com.google.android.material.progressindicator.LinearProgressIndicator
-                            android:id="@+id/pbStorage"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="0"
-                            app:trackColor="@color/card_inner"
-                            app:indicatorColor="@color/primary_accent"
-                            app:trackCornerRadius="4dp"
-                            app:trackThickness="8dp"
-                            android:layout_marginBottom="4dp" />
-
-                        <TextView
-                            android:id="@+id/tvStorageSubtext"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Free: -- GB"
-                            android:textColor="@color/text_muted"
-                            android:textSize="11sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 3. VIP Apps Card -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/card_dark"
-                    app:strokeColor="@color/card_stroke"
-                    app:strokeWidth="1dp"
-                    app:cardCornerRadius="16dp"
-                    android:layout_marginBottom="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_keep_alive_list"
-                            android:textColor="@color/text_title"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/desc_keep_alive_list"
-                            android:textColor="@color/text_body"
-                            android:textSize="13sp"
-                            android:layout_marginTop="4dp" />
-
-                        <TextView
-                            android:id="@+id/tvVipSummary"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="@string/title_keep_alive_list"
-                            android:textColor="@color/primary_accent"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnManageVip"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/btn_select_keep_alive_apps"
-                            android:layout_marginTop="12dp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 4. Retention Controls -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/card_dark"
-                    app:strokeColor="@color/card_stroke"
-                    app:strokeWidth="1dp"
-                    app:cardCornerRadius="16dp"
-                    android:layout_marginBottom="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_retention_controls"
-                            android:textColor="@color/text_title"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:layout_marginBottom="12dp" />
-
-                        <!-- Switch 1: Tiered ADJ -->
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switchTieredAdj"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_tiered_adj"
-                            android:textColor="@color/text_title"
-                            android:checked="true" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/desc_tiered_adj"
-                            android:textColor="@color/text_muted"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="12dp" />
-
-                        <!-- Switch 2: KillShield -->
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switchKillShield"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_killshield"
-                            android:textColor="@color/text_title"
-                            android:checked="true" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/desc_killshield"
-                            android:textColor="@color/text_muted"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="12dp" />
-
-                        <!-- Switch 3: Doze Whitelist -->
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switchDoze"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_doze"
-                            android:textColor="@color/text_title"
-                            android:checked="true" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/desc_doze"
-                            android:textColor="@color/text_muted"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="12dp" />
-
-                        <!-- Switch 4: Nubia / RedMagic Policy -->
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switchNubia"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_nubia"
-                            android:textColor="@color/text_title"
-                            android:checked="true" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/desc_nubia"
-                            android:textColor="@color/text_muted"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="12dp" />
-
-                        <!-- Switch 5: Hibernation -->
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switchHibernation"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_hibernation"
-                            android:textColor="@color/text_title"
-                            android:checked="true" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/desc_hibernation"
-                            android:textColor="@color/text_muted"
-                            android:textSize="12sp"
-                            android:layout_marginBottom="12dp" />
-
-                        <!-- Switch 6: AutoStart -->
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switchAutoStart"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/title_autostart"
-                            android:textColor="@color/text_title"
-                            android:checked="true" />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/desc_autostart"
-                            android:textColor="@color/text_muted"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 5. Live Process & OOM ADJ Monitor -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/card_dark"
-                    app:strokeColor="@color/card_stroke"
-                    app:strokeWidth="1dp"
-                    app:cardCornerRadius="16dp"
-                    android:layout_marginBottom="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="8dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/title_active_processes"
-                                android:textColor="@color/text_title"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tvProcessCount"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="0 apps"
-                                android:textColor="@color/text_body"
-                                android:textSize="13sp" />
-                        </LinearLayout>
-
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/rvProcesses"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:nestedScrollingEnabled="false" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- 6. Real-Time Log Viewer -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/card_dark"
-                    app:strokeColor="@color/card_stroke"
-                    app:strokeWidth="1dp"
-                    app:cardCornerRadius="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="8dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/title_retention_log"
-                                android:textColor="@color/text_title"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnClearLog"
-                                style="@style/Widget.Material3.Button.TextButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/btn_clear_log"
-                                android:textColor="@color/text_body" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/tvLogContent"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:maxLines="15"
-                            android:ellipsize="end"
-                            android:background="@color/card_inner"
-                            android:padding="12dp"
-                            android:fontFamily="monospace"
-                            android:text="@string/placeholder_log"
-                            android:textColor="@color/text_body"
-                            android:textSize="11sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
+                    app:cornerRadius="8dp"
+                    app:icon="@drawable/ic_github"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/text_title"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp" />
             </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        </androidx.appcompat.widget.Toolbar>
+    </com.google.android.material.appbar.AppBarLayout>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    <!-- Page Content Container -->
+    <FrameLayout
+        android:id="@+id/pageContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- 1. Dashboard Page -->
+        <include
+            android:id="@+id/pageDashboard"
+            layout="@layout/page_dashboard"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="visible" />
+
+        <!-- 2. Keep-Alive List Page -->
+        <include
+            android:id="@+id/pageKeepAlive"
+            layout="@layout/page_keep_alive"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <!-- 3. Retention Controls Page -->
+        <include
+            android:id="@+id/pageControls"
+            layout="@layout/page_controls"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <!-- 4. Retention Logs Page -->
+        <include
+            android:id="@+id/pageLogs"
+            layout="@layout/page_logs"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- Bottom Navigation Bar -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/card_dark"
+        app:menu="@menu/menu_bottom_nav"
+        app:itemIconTint="@color/bottom_nav_color_selector"
+        app:itemTextColor="@color/bottom_nav_color_selector"
+        app:itemRippleColor="#1A38BDF8"
+        app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator"
+        app:elevation="8dp" />
+
+</LinearLayout>

@@ -1,6 +1,8 @@
 package com.hchen.appretention.ui;
 
 import android.app.ActivityManager;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -16,22 +18,25 @@ import android.os.StatFs;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.LruCache;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.hchen.appretention.BuildConfig;
 import com.hchen.appretention.R;
 import com.hchen.hooktool.utils.SystemPropTool;
 
@@ -40,7 +45,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Locale;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -57,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_HIBERNATION = "persist.hchen.hibernation.opt.enable";
     private static final String KEY_AUTOSTART = "persist.hchen.autostart.opt.enable";
 
-    // Memory-leak-free Icon Cache
+    // Memory-leak-free Caches
     private static final LruCache<String, Drawable.ConstantState> sIconCache = new LruCache<>(150);
     private static final LruCache<String, String> sLabelCache = new LruCache<>(250);
 
@@ -66,29 +70,50 @@ public class MainActivity extends AppCompatActivity {
 
     private SharedPreferences prefs;
 
-    // UI elements
-    private SwipeRefreshLayout swipeRefresh;
-    private TextView tvStatusBadge;
-    private TextView tvModeDetail;
-    private TextView tvShieldCount;
+    // Navigation & Page Containers
+    private BottomNavigationView bottomNavigation;
+    private View pageDashboard;
+    private View pageKeepAlive;
+    private View pageControls;
+    private View pageLogs;
 
-    // Hardware monitor UI
+    // Tab 1: Dashboard UI elements
+    private SwipeRefreshLayout swipeRefreshDashboard;
+    private TextView tvStatusBadge;
+    private TextView tvHookScope;
+    private TextView tvShieldStatus;
+
     private TextView tvRamDetails;
     private TextView tvRamSubtext;
-    private LinearProgressIndicator pbRam;
+    private LinearProgressIndicator pbRamUsage;
 
     private TextView tvCpuDetails;
     private TextView tvCpuSubtext;
-    private LinearProgressIndicator pbCpu;
+    private LinearProgressIndicator pbCpuUsage;
 
     private TextView tvStorageDetails;
     private TextView tvStorageSubtext;
-    private LinearProgressIndicator pbStorage;
+    private LinearProgressIndicator pbStorageUsage;
 
     private TextView tvProcessCount;
-    private TextView tvVipSummary;
-    private TextView tvLogContent;
+    private RecyclerView rvProcesses;
+    private ProcessAdapter processAdapter;
+    private final List<ProcessItem> processList = new ArrayList<>();
 
+    // Tab 2: Keep-Alive Dedicated Page UI elements
+    private TextView tvKeepAliveSummaryCount;
+    private EditText etSearchKeepAlive;
+    private ImageView btnClearSearch;
+    private ChipGroup chipGroupFilter;
+    private Chip chipAllApps;
+    private Chip chipKeepAliveOnly;
+    private ProgressBar pbLoadingKeepAlive;
+    private RecyclerView rvKeepAliveApps;
+    private KeepAliveAdapter keepAliveAdapter;
+    private final List<AppItem> allInstalledApps = new ArrayList<>();
+    private boolean isAppsLoaded = false;
+
+    // Tab 3: Retention Controls UI elements
     private MaterialSwitch switchTieredAdj;
     private MaterialSwitch switchKillShield;
     private MaterialSwitch switchDoze;
@@ -96,16 +121,19 @@ public class MainActivity extends AppCompatActivity {
     private MaterialSwitch switchHibernation;
     private MaterialSwitch switchAutoStart;
 
-    private RecyclerView rvProcesses;
-    private ProcessAdapter processAdapter;
-    private final List<ProcessItem> processList = new ArrayList<>();
+    // Tab 4: Logs UI elements
+    private TextView tvLogContent;
+    private MaterialButton btnCopyLog;
+    private MaterialButton btnClearLog;
 
-    // 5-second recurring auto-refresh handler
+    // 5-second recurring auto-refresh handler for Dashboard
     private final Handler mTimerHandler = new Handler(Looper.getMainLooper());
     private final Runnable mPeriodicRefreshRunnable = new Runnable() {
         @Override
         public void run() {
-            updateHardwareStats();
+            if (pageDashboard != null && pageDashboard.getVisibility() == View.VISIBLE) {
+                updateHardwareStats();
+            }
             mTimerHandler.postDelayed(this, 5000);
         }
     };
@@ -125,6 +153,7 @@ public class MainActivity extends AppCompatActivity {
         RootTool.cleanLegacyTraces();
 
         initViews();
+        setupNavigation();
         setupSwitches();
         checkAndPromptRoot();
     }
@@ -134,23 +163,27 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         mTimerHandler.removeCallbacks(mPeriodicRefreshRunnable);
         mTimerHandler.post(mPeriodicRefreshRunnable);
-        updateVipSummary();
+        updateKeepAliveHeader();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        // Prevent background battery drain when app is paused
         mTimerHandler.removeCallbacks(mPeriodicRefreshRunnable);
     }
 
     private void initViews() {
-        // GitHub Action Button
+        // Top Toolbar
+        TextView tvAppVersion = findViewById(R.id.tvAppVersion);
+        if (tvAppVersion != null) {
+            tvAppVersion.setText("v" + BuildConfig.VERSION_NAME);
+        }
+
         MaterialButton btnGithub = findViewById(R.id.btnGithub);
         if (btnGithub != null) {
             btnGithub.setOnClickListener(v -> {
                 try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/KhanhNguyen9872/AppRetention"));
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/KhanhNguyen9872/AppRetentionFork"));
                     startActivity(intent);
                 } catch (Throwable t) {
                     Toast.makeText(this, "Could not open browser", Toast.LENGTH_SHORT).show();
@@ -158,39 +191,145 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        swipeRefresh = findViewById(R.id.swipeRefresh);
-        swipeRefresh.setOnRefreshListener(this::refreshAll);
+        // Page Containers
+        pageDashboard = findViewById(R.id.pageDashboard);
+        pageKeepAlive = findViewById(R.id.pageKeepAlive);
+        pageControls = findViewById(R.id.pageControls);
+        pageLogs = findViewById(R.id.pageLogs);
+        bottomNavigation = findViewById(R.id.bottomNavigation);
+
+        // --- Tab 1: Dashboard Initialization ---
+        swipeRefreshDashboard = findViewById(R.id.swipeRefreshDashboard);
+        if (swipeRefreshDashboard != null) {
+            swipeRefreshDashboard.setOnRefreshListener(() -> {
+                updateHardwareStats();
+                refreshRunningProcesses();
+                swipeRefreshDashboard.setRefreshing(false);
+            });
+        }
 
         tvStatusBadge = findViewById(R.id.tvStatusBadge);
-        tvModeDetail = findViewById(R.id.tvModeDetail);
-        tvShieldCount = findViewById(R.id.tvShieldCount);
-        if (tvModeDetail != null) {
-            tvModeDetail.setOnClickListener(v -> {
+        tvHookScope = findViewById(R.id.tvHookScope);
+        tvShieldStatus = findViewById(R.id.tvShieldStatus);
+        if (tvHookScope != null) {
+            tvHookScope.setOnClickListener(v -> {
                 if (!RootTool.isRootAvailable()) {
                     checkAndPromptRoot();
                 } else {
-                Toast.makeText(this, R.string.toast_root_active, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, R.string.toast_root_active, Toast.LENGTH_SHORT).show();
                 }
             });
         }
 
-        // Hardware monitors
         tvRamDetails = findViewById(R.id.tvRamDetails);
         tvRamSubtext = findViewById(R.id.tvRamSubtext);
-        pbRam = findViewById(R.id.pbRam);
+        pbRamUsage = findViewById(R.id.pbRamUsage);
 
         tvCpuDetails = findViewById(R.id.tvCpuDetails);
         tvCpuSubtext = findViewById(R.id.tvCpuSubtext);
-        pbCpu = findViewById(R.id.pbCpu);
+        pbCpuUsage = findViewById(R.id.pbCpuUsage);
 
         tvStorageDetails = findViewById(R.id.tvStorageDetails);
         tvStorageSubtext = findViewById(R.id.tvStorageSubtext);
-        pbStorage = findViewById(R.id.pbStorage);
+        pbStorageUsage = findViewById(R.id.pbStorageUsage);
 
         tvProcessCount = findViewById(R.id.tvProcessCount);
-        tvVipSummary = findViewById(R.id.tvVipSummary);
-        tvLogContent = findViewById(R.id.tvLogContent);
+        rvProcesses = findViewById(R.id.rvProcesses);
+        if (rvProcesses != null) {
+            rvProcesses.setLayoutManager(new LinearLayoutManager(this));
+            processAdapter = new ProcessAdapter(processList);
+            processAdapter.setOnProcessKillListener((item, position) -> {
+                RootTool.killProcess(item.pid, item.packageName);
+                try {
+                    ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                    if (am != null) {
+                        String pkg = item.packageName;
+                        if (pkg.contains(":")) {
+                            pkg = pkg.substring(0, pkg.indexOf(':'));
+                        }
+                        am.killBackgroundProcesses(pkg);
+                    }
+                } catch (Throwable ignored) {}
 
+                Toast.makeText(MainActivity.this, getString(R.string.toast_killed_process, item.appName), Toast.LENGTH_SHORT).show();
+                processAdapter.removeItem(position);
+                tvProcessCount.setText(getString(R.string.format_process_count, processAdapter.getItemCount()));
+                mTimerHandler.postDelayed(this::refreshRunningProcesses, 1000);
+            });
+            rvProcesses.setAdapter(processAdapter);
+        }
+
+        // --- Tab 2: Keep-Alive Page Initialization ---
+        tvKeepAliveSummaryCount = findViewById(R.id.tvKeepAliveSummaryCount);
+        etSearchKeepAlive = findViewById(R.id.etSearchKeepAlive);
+        btnClearSearch = findViewById(R.id.btnClearSearch);
+        chipGroupFilter = findViewById(R.id.chipGroupFilter);
+        chipAllApps = findViewById(R.id.chipAllApps);
+        chipKeepAliveOnly = findViewById(R.id.chipKeepAliveOnly);
+        pbLoadingKeepAlive = findViewById(R.id.pbLoadingKeepAlive);
+        rvKeepAliveApps = findViewById(R.id.rvKeepAliveApps);
+
+        if (rvKeepAliveApps != null) {
+            rvKeepAliveApps.setLayoutManager(new LinearLayoutManager(this));
+            keepAliveAdapter = new KeepAliveAdapter(allInstalledApps);
+            keepAliveAdapter.setOnKeepAliveChangeListener((item, isPinned, position) -> {
+                Set<String> vipSet = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
+                if (isPinned) {
+                    vipSet.add(item.packageName);
+                    Toast.makeText(this, getString(R.string.toast_keep_alive_added, item.appName), Toast.LENGTH_SHORT).show();
+                } else {
+                    vipSet.remove(item.packageName);
+                    Toast.makeText(this, getString(R.string.toast_keep_alive_removed, item.appName), Toast.LENGTH_SHORT).show();
+                }
+                prefs.edit().putStringSet(KEY_VIP_PACKAGES, vipSet).apply();
+                String joined = String.join(",", vipSet);
+                RootTool.setProp(KEY_VIP_PACKAGES, joined);
+
+                updateKeepAliveHeader();
+                refreshRunningProcesses();
+            });
+            rvKeepAliveApps.setAdapter(keepAliveAdapter);
+        }
+
+        if (etSearchKeepAlive != null) {
+            etSearchKeepAlive.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String query = s != null ? s.toString() : "";
+                    if (btnClearSearch != null) {
+                        btnClearSearch.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
+                    }
+                    if (keepAliveAdapter != null) {
+                        keepAliveAdapter.setQuery(query);
+                    }
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
+
+        if (btnClearSearch != null) {
+            btnClearSearch.setOnClickListener(v -> {
+                if (etSearchKeepAlive != null) {
+                    etSearchKeepAlive.setText("");
+                }
+            });
+        }
+
+        if (chipGroupFilter != null) {
+            chipGroupFilter.setOnCheckedStateChangeListener((group, checkedIds) -> {
+                if (keepAliveAdapter != null) {
+                    boolean keepAliveOnly = checkedIds.contains(R.id.chipKeepAliveOnly);
+                    keepAliveAdapter.setFilterKeepAliveOnly(keepAliveOnly);
+                }
+            });
+        }
+
+        // --- Tab 3: Controls Page Initialization ---
         switchTieredAdj = findViewById(R.id.switchTieredAdj);
         switchKillShield = findViewById(R.id.switchKillShield);
         switchDoze = findViewById(R.id.switchDoze);
@@ -198,37 +337,76 @@ public class MainActivity extends AppCompatActivity {
         switchHibernation = findViewById(R.id.switchHibernation);
         switchAutoStart = findViewById(R.id.switchAutoStart);
 
-        rvProcesses = findViewById(R.id.rvProcesses);
-        rvProcesses.setLayoutManager(new LinearLayoutManager(this));
-        processAdapter = new ProcessAdapter(processList);
-        processAdapter.setOnProcessKillListener((item, position) -> {
-            RootTool.killProcess(item.pid, item.packageName);
-            try {
-                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-                if (am != null) {
-                    String pkg = item.packageName;
-                    if (pkg.contains(":")) {
-                        pkg = pkg.substring(0, pkg.indexOf(':'));
+        // --- Tab 4: Logs Page Initialization ---
+        tvLogContent = findViewById(R.id.tvLogContent);
+        btnCopyLog = findViewById(R.id.btnCopyLog);
+        if (btnCopyLog != null) {
+            btnCopyLog.setOnClickListener(v -> {
+                if (tvLogContent != null) {
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (clipboard != null) {
+                        ClipData clip = ClipData.newPlainText("AppRetention Logs", tvLogContent.getText().toString());
+                        clipboard.setPrimaryClip(clip);
+                        Toast.makeText(this, R.string.toast_log_copied, Toast.LENGTH_SHORT).show();
                     }
-                    am.killBackgroundProcesses(pkg);
                 }
-            } catch (Throwable ignored) {}
+            });
+        }
 
-            Toast.makeText(MainActivity.this, getString(R.string.toast_killed_process, item.appName), Toast.LENGTH_SHORT).show();
-            processAdapter.removeItem(position);
-            tvProcessCount.setText(getString(R.string.format_process_count, processAdapter.getItemCount()));
-            mTimerHandler.postDelayed(this::refreshRunningProcesses, 1000);
-        });
-        rvProcesses.setAdapter(processAdapter);
+        btnClearLog = findViewById(R.id.btnClearLog);
+        if (btnClearLog != null) {
+            btnClearLog.setOnClickListener(v -> {
+                clearLogFiles();
+                if (tvLogContent != null) {
+                    tvLogContent.setText(R.string.placeholder_log);
+                }
+                Toast.makeText(this, R.string.toast_log_cleared, Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
 
-        MaterialButton btnManageVip = findViewById(R.id.btnManageVip);
-        btnManageVip.setOnClickListener(v -> showVipAppsDialog());
+    private void setupNavigation() {
+        if (bottomNavigation != null) {
+            bottomNavigation.setOnItemSelectedListener(item -> {
+                int id = item.getItemId();
+                if (id == R.id.nav_dashboard) {
+                    switchTab(0);
+                    return true;
+                } else if (id == R.id.nav_keep_alive) {
+                    switchTab(1);
+                    return true;
+                } else if (id == R.id.nav_controls) {
+                    switchTab(2);
+                    return true;
+                } else if (id == R.id.nav_logs) {
+                    switchTab(3);
+                    return true;
+                }
+                return false;
+            });
+        }
+        // Start on Dashboard
+        switchTab(0);
+    }
 
-        MaterialButton btnClearLog = findViewById(R.id.btnClearLog);
-        btnClearLog.setOnClickListener(v -> {
-            clearLogFiles();
-            tvLogContent.setText("Log cleared.");
-        });
+    private void switchTab(int tabIndex) {
+        if (pageDashboard != null) pageDashboard.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
+        if (pageKeepAlive != null) pageKeepAlive.setVisibility(tabIndex == 1 ? View.VISIBLE : View.GONE);
+        if (pageControls != null) pageControls.setVisibility(tabIndex == 2 ? View.VISIBLE : View.GONE);
+        if (pageLogs != null) pageLogs.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
+
+        if (tabIndex == 0) {
+            updateHardwareStats();
+            refreshRunningProcesses();
+        } else if (tabIndex == 1) {
+            if (!isAppsLoaded) {
+                loadInstalledApps(false);
+            } else {
+                updateKeepAliveHeader();
+            }
+        } else if (tabIndex == 3) {
+            refreshLogs();
+        }
     }
 
     private void setupSwitches() {
@@ -241,6 +419,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void bindSwitch(MaterialSwitch sw, String key, boolean defValue) {
+        if (sw == null) return;
         boolean val = prefs.getBoolean(key, SystemPropTool.getProp(key, defValue));
         sw.setChecked(val);
         sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -250,54 +429,140 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkAndPromptRoot() {
-        if (tvModeDetail != null) {
-            tvModeDetail.setText(getString(R.string.status_root_requesting));
+        if (tvHookScope != null) {
+            tvHookScope.setText(R.string.status_root_requesting);
         }
+
         sWorkerPool.execute(() -> {
             boolean hasRoot = RootTool.requestRoot();
             runOnUiThread(() -> {
                 if (hasRoot) {
-                    tvModeDetail.setText(getString(R.string.status_root_active));
-                    tvModeDetail.setTextColor(0xFF22C55E);
+                    if (tvHookScope != null) tvHookScope.setText(R.string.status_root_active);
+                    if (tvStatusBadge != null) {
+                        tvStatusBadge.setText(R.string.badge_status_active);
+                        tvStatusBadge.setBackgroundResource(R.drawable.bg_badge_green);
+                        tvStatusBadge.setTextColor(0xFF22C55E);
+                    }
                 } else {
-                    tvModeDetail.setText(getString(R.string.status_root_limited));
-                    tvModeDetail.setTextColor(0xFFF59E0B);
+                    if (tvHookScope != null) tvHookScope.setText(R.string.status_root_limited);
+                    if (tvStatusBadge != null) {
+                        tvStatusBadge.setText("Limited (No Root)");
+                        tvStatusBadge.setBackgroundResource(R.drawable.bg_badge_amber);
+                        tvStatusBadge.setTextColor(0xFFF59E0B);
+                    }
                     showRootExplanationDialog();
                 }
-                refreshAll();
+                updateHardwareStats();
+                refreshRunningProcesses();
             });
         });
     }
 
     private void showRootExplanationDialog() {
         if (isFinishing() || isDestroyed()) return;
-
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.dialog_root_title)
-            .setMessage(R.string.dialog_root_message)
-            .setPositiveButton(R.string.btn_dialog_retry_root, (dialog, which) -> {
-                RootTool.resetRootCheck();
-                checkAndPromptRoot();
-            })
-            .setNegativeButton(R.string.btn_dialog_continue_limited, (dialog, which) -> dialog.dismiss())
-            .setCancelable(true)
-            .show();
+                .setTitle(R.string.dialog_root_title)
+                .setMessage(R.string.dialog_root_message)
+                .setPositiveButton(R.string.btn_dialog_retry_root, (dialog, which) -> {
+                    dialog.dismiss();
+                    checkAndPromptRoot();
+                })
+                .setNegativeButton(R.string.btn_dialog_continue_limited, (dialog, which) -> dialog.dismiss())
+                .setCancelable(true)
+                .show();
     }
 
-    private void refreshAll() {
-        updateHardwareStats();
-        updateVipSummary();
-        refreshRunningProcesses();
-        refreshLogs();
-        swipeRefresh.setRefreshing(false);
+    private void updateKeepAliveHeader() {
+        if (keepAliveAdapter == null) return;
+        int vipCount = keepAliveAdapter.getVipCount();
+        int totalCount = keepAliveAdapter.getTotalCount();
+        if (tvKeepAliveSummaryCount != null) {
+            tvKeepAliveSummaryCount.setText(getString(R.string.format_keep_alive_summary, vipCount));
+        }
+        if (chipAllApps != null) {
+            chipAllApps.setText(getString(R.string.chip_all_apps, totalCount));
+        }
+        if (chipKeepAliveOnly != null) {
+            chipKeepAliveOnly.setText(getString(R.string.chip_keep_alive_only, vipCount));
+        }
+    }
+
+    private void loadInstalledApps(boolean forceReload) {
+        if (isAppsLoaded && !forceReload) {
+            updateKeepAliveHeader();
+            return;
+        }
+
+        if (pbLoadingKeepAlive != null) pbLoadingKeepAlive.setVisibility(View.VISIBLE);
+        if (rvKeepAliveApps != null) rvKeepAliveApps.setVisibility(View.GONE);
+
+        sWorkerPool.execute(() -> {
+            PackageManager pm = getPackageManager();
+            List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            Set<String> currentVips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
+
+            List<AppItem> loadedList = new ArrayList<>();
+            for (ApplicationInfo ai : installed) {
+                if (getPackageName().equals(ai.packageName)) continue;
+
+                boolean isPinned = currentVips.contains(ai.packageName);
+                boolean isUserApp = (ai.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
+                boolean isUpdatedSystem = (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+                boolean hasLauncher = false;
+                try {
+                    hasLauncher = pm.getLaunchIntentForPackage(ai.packageName) != null;
+                } catch (Throwable ignored) {}
+
+                if (!isPinned && !isUserApp && !isUpdatedSystem && !hasLauncher) {
+                    continue;
+                }
+
+                String label = sLabelCache.get(ai.packageName);
+                Drawable.ConstantState iconState = sIconCache.get(ai.packageName);
+                Drawable icon = iconState != null ? iconState.newDrawable() : null;
+                if (label == null || icon == null) {
+                    try {
+                        label = pm.getApplicationLabel(ai).toString();
+                        Drawable rawIcon = pm.getApplicationIcon(ai);
+                        sLabelCache.put(ai.packageName, label);
+                        if (rawIcon.getConstantState() != null) {
+                            sIconCache.put(ai.packageName, rawIcon.getConstantState());
+                            icon = rawIcon.getConstantState().newDrawable();
+                        } else {
+                            icon = rawIcon;
+                        }
+                    } catch (Throwable ignored) {
+                        continue;
+                    }
+                }
+
+                loadedList.add(new AppItem(label, ai.packageName, icon, isPinned));
+            }
+
+            loadedList.sort((a, b) -> {
+                if (a.isVip != b.isVip) return a.isVip ? -1 : 1;
+                return a.appName.compareToIgnoreCase(b.appName);
+            });
+
+            runOnUiThread(() -> {
+                isAppsLoaded = true;
+                allInstalledApps.clear();
+                allInstalledApps.addAll(loadedList);
+                if (keepAliveAdapter != null) {
+                    keepAliveAdapter.setAllApps(allInstalledApps);
+                }
+                updateKeepAliveHeader();
+                if (pbLoadingKeepAlive != null) pbLoadingKeepAlive.setVisibility(View.GONE);
+                if (rvKeepAliveApps != null) rvKeepAliveApps.setVisibility(View.VISIBLE);
+            });
+        });
     }
 
     private void updateHardwareStats() {
         sWorkerPool.execute(() -> {
-            // Read all root hardware metrics in a single high-performance atomic query
             RootTool.HardwareStats rootStats = RootTool.getHardwareStats();
 
-            // 1. RAM Calculation (Root /proc/meminfo with 100% precision, fallback to ActivityManager)
+            // 1. RAM Calculation
             long totalRamBytes = 0;
             long availRamBytes = 0;
             if (rootStats != null && rootStats.memTotalBytes > 0) {
@@ -318,11 +583,11 @@ public class MainActivity extends AppCompatActivity {
             double availRamGb = availRamBytes / (1024.0 * 1024.0 * 1024.0);
             int discount = (int) Math.round(totalRamGb) >= 15 ? 5 : ((int) Math.round(totalRamGb) >= 11 ? 4 : 3);
 
-            // 2. CPU Calculation (Root /proc/stat atomic reading)
+            // 2. CPU Calculation
             int cpuPercent = readCpuUsage(rootStats != null ? rootStats.cpuLine : null);
             int cores = Runtime.getRuntime().availableProcessors();
 
-            // 3. Storage Calculation (Root df /data filesystem statistics, fallback to StatFs)
+            // 3. Storage Calculation
             long totalStorageBytes = 0;
             long usedStorageBytes = 0;
             long freeStorageBytes = 0;
@@ -349,28 +614,25 @@ public class MainActivity extends AppCompatActivity {
             double freeStorageGb = freeStorageBytes / (1024.0 * 1024.0 * 1024.0);
 
             runOnUiThread(() -> {
-                // Update RAM
-                tvRamDetails.setText(getString(R.string.format_ram_details, usedRamGb, totalRamGb, ramPercent));
-                tvRamSubtext.setText(getString(R.string.format_ram_subtext, availRamGb, discount));
-                pbRam.setProgress(ramPercent);
+                if (tvRamDetails != null) tvRamDetails.setText(getString(R.string.format_ram_details, usedRamGb, totalRamGb, ramPercent));
+                if (tvRamSubtext != null) tvRamSubtext.setText(getString(R.string.format_ram_subtext, availRamGb, discount));
+                if (pbRamUsage != null) pbRamUsage.setProgress(ramPercent);
 
-                // Update CPU
                 if (cpuPercent >= 0) {
-                    tvCpuDetails.setText(getString(R.string.format_cpu_details, cpuPercent));
-                    tvCpuSubtext.setText(getString(R.string.format_cpu_subtext, cores));
-                    pbCpu.setProgress(cpuPercent);
+                    if (tvCpuDetails != null) tvCpuDetails.setText(getString(R.string.format_cpu_details, cpuPercent));
+                    if (tvCpuSubtext != null) tvCpuSubtext.setText(getString(R.string.format_cpu_subtext, cores));
+                    if (pbCpuUsage != null) pbCpuUsage.setProgress(cpuPercent);
                 } else {
-                    tvCpuDetails.setText("N/A");
-                    tvCpuSubtext.setText(getString(R.string.format_cpu_root_required, cores));
-                    pbCpu.setProgress(0);
+                    if (tvCpuDetails != null) tvCpuDetails.setText("N/A");
+                    if (tvCpuSubtext != null) tvCpuSubtext.setText(getString(R.string.format_cpu_root_required, cores));
+                    if (pbCpuUsage != null) pbCpuUsage.setProgress(0);
                 }
 
-                // Update Storage
-                tvStorageDetails.setText(getString(R.string.format_storage_details, usedStorageGb, totalStorageGb, storagePercent));
-                tvStorageSubtext.setText(getString(R.string.format_storage_subtext, freeStorageGb));
-                pbStorage.setProgress(storagePercent);
+                if (tvStorageDetails != null) tvStorageDetails.setText(getString(R.string.format_storage_details, usedStorageGb, totalStorageGb, storagePercent));
+                if (tvStorageSubtext != null) tvStorageSubtext.setText(getString(R.string.format_storage_subtext, freeStorageGb));
+                if (pbStorageUsage != null) pbStorageUsage.setProgress(storagePercent);
 
-                tvShieldCount.setText(getString(R.string.status_killshield_active));
+                if (tvShieldStatus != null) tvShieldStatus.setText(getString(R.string.status_killshield_active));
             });
         });
     }
@@ -394,7 +656,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static long[] parseCpuLine(String line) {
         try {
-            String[] parts = line.trim().split("\\s+");
+            String[] parts = line.trim().split("\s+");
             if (parts.length >= 5) {
                 long user = Long.parseLong(parts[1]);
                 long nice = Long.parseLong(parts[2]);
@@ -431,7 +693,6 @@ public class MainActivity extends AppCompatActivity {
                         return Math.max(1, Math.min(100, usage));
                     }
                 } else {
-                    // Initial cold-start sample: 200ms quick delta so user sees live load immediately
                     try {
                         Thread.sleep(200);
                         String line2 = getCpuStatLine();
@@ -449,54 +710,10 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
                     } catch (Throwable ignored) {}
-                    mLastTotalCpu = total;
-                    mLastIdleCpu = totalIdle;
                 }
             }
         }
-
-        // Secondary fallback: Hardware CPU frequency scaling
-        int freqLoad = readCpuFreqLoad();
-        if (freqLoad >= 0) {
-            return freqLoad;
-        }
-
         return -1;
-    }
-
-    private int readCpuFreqLoad() {
-        try {
-            int cores = Runtime.getRuntime().availableProcessors();
-            long totalCur = 0;
-            long totalMax = 0;
-            for (int i = 0; i < cores; i++) {
-                long cur = readLongFromFile("/sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
-                long max = readLongFromFile("/sys/devices/system/cpu/cpu" + i + "/cpufreq/cpuinfo_max_freq");
-                if (cur > 0 && max > 0) {
-                    totalCur += cur;
-                    totalMax += max;
-                }
-            }
-            if (totalMax > 0) {
-                return (int) Math.max(1, Math.min(100, (totalCur * 100) / totalMax));
-            }
-        } catch (Throwable ignored) {}
-        return -1;
-    }
-
-    private static long readLongFromFile(String path) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
-            String line = reader.readLine();
-            if (line != null) {
-                return Long.parseLong(line.trim());
-            }
-        } catch (Throwable ignored) {}
-        return -1;
-    }
-
-    private void updateVipSummary() {
-        Set<String> vips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
-        tvVipSummary.setText(getString(R.string.format_keep_alive_summary, vips.size()));
     }
 
     private void refreshRunningProcesses() {
@@ -570,7 +787,17 @@ public class MainActivity extends AppCompatActivity {
                 if (am != null) {
                     List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
                     if (running != null) {
-                        for (ActivityManager.RunningAppProcessInfo info : running) {
+                        int[] pids = new int[running.size()];
+                        for (int i = 0; i < running.size(); i++) {
+                            pids[i] = running.get(i).pid;
+                        }
+                        android.os.Debug.MemoryInfo[] memInfos = null;
+                        try {
+                            memInfos = am.getProcessMemoryInfo(pids);
+                        } catch (Throwable ignored) {}
+
+                        for (int i = 0; i < running.size(); i++) {
+                            ActivityManager.RunningAppProcessInfo info = running.get(i);
                             if (info.uid < 10000) continue;
                             String pkg = (info.pkgList != null && info.pkgList.length > 0) ? info.pkgList[0] : info.processName;
                             String label = sLabelCache.get(pkg);
@@ -593,14 +820,11 @@ public class MainActivity extends AppCompatActivity {
                             if (label == null) label = pkg;
                             int estimatedAdj = vipSet.contains(pkg) ? 200 : (200 + (items.size() * 5));
                             long memBytes = 0;
-                            try {
-                                android.os.Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(new int[]{info.pid});
-                                if (mi != null && mi.length > 0 && mi[0] != null) {
-                                    long pssKb = mi[0].getTotalPss();
-                                    if (pssKb <= 0) pssKb = mi[0].getTotalPrivateDirty();
-                                    if (pssKb > 0) memBytes = pssKb * 1024L;
-                                }
-                            } catch (Throwable ignored) {}
+                            if (memInfos != null && i < memInfos.length && memInfos[i] != null) {
+                                long pssKb = memInfos[i].getTotalPss();
+                                if (pssKb <= 0) pssKb = memInfos[i].getTotalPrivateDirty();
+                                if (pssKb > 0) memBytes = pssKb * 1024L;
+                            }
                             items.add(new ProcessItem(label, pkg, info.pid, estimatedAdj, icon, memBytes));
                         }
                     }
@@ -610,8 +834,12 @@ public class MainActivity extends AppCompatActivity {
             items.sort((a, b) -> Integer.compare(a.adj, b.adj));
 
             runOnUiThread(() -> {
-                processAdapter.updateList(items);
-                tvProcessCount.setText(getString(R.string.format_process_count, items.size()));
+                if (processAdapter != null) {
+                    processAdapter.updateList(items);
+                }
+                if (tvProcessCount != null) {
+                    tvProcessCount.setText(getString(R.string.format_process_count, items.size()));
+                }
             });
         });
     }
@@ -643,10 +871,12 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        if (hasLogs) {
-            tvLogContent.setText(sb.toString());
-        } else {
-            tvLogContent.setText("No Hook logs recorded yet. Logs will appear here as Android system services run.");
+        if (tvLogContent != null) {
+            if (hasLogs) {
+                tvLogContent.setText(sb.toString());
+            } else {
+                tvLogContent.setText(R.string.placeholder_log);
+            }
         }
     }
 
@@ -666,103 +896,5 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-    }
-
-    private void showVipAppsDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_vip_apps, null);
-        RecyclerView rv = dialogView.findViewById(R.id.rvAppList);
-        ProgressBar pb = dialogView.findViewById(R.id.pbLoadingApps);
-        EditText etSearch = dialogView.findViewById(R.id.etSearchApp);
-
-        rv.setLayoutManager(new LinearLayoutManager(this));
-        rv.setVisibility(View.GONE);
-        pb.setVisibility(View.VISIBLE);
-
-        List<AppItem> appItems = new ArrayList<>();
-        AppListAdapter adapter = new AppListAdapter(appItems);
-        rv.setAdapter(adapter);
-
-        etSearch.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                adapter.filter(s != null ? s.toString() : "");
-            }
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create();
-
-        // Async Background App Loader
-        sWorkerPool.execute(() -> {
-            PackageManager pm = getPackageManager();
-            List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-            Set<String> currentVips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
-
-            List<AppItem> loadedList = new ArrayList<>();
-            for (ApplicationInfo ai : installed) {
-                if ((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
-                if (getPackageName().equals(ai.packageName)) continue;
-
-                String label = sLabelCache.get(ai.packageName);
-                Drawable.ConstantState iconState = sIconCache.get(ai.packageName);
-                Drawable icon = iconState != null ? iconState.newDrawable() : null;
-                if (label == null || icon == null) {
-                    try {
-                        label = pm.getApplicationLabel(ai).toString();
-                        Drawable rawIcon = pm.getApplicationIcon(ai);
-                        sLabelCache.put(ai.packageName, label);
-                        if (rawIcon.getConstantState() != null) {
-                            sIconCache.put(ai.packageName, rawIcon.getConstantState());
-                            icon = rawIcon.getConstantState().newDrawable();
-                        } else {
-                            icon = rawIcon;
-                        }
-                    } catch (Throwable ignored) {
-                        continue;
-                    }
-                }
-
-                boolean isVip = currentVips.contains(ai.packageName);
-                loadedList.add(new AppItem(label, ai.packageName, icon, isVip));
-            }
-
-            loadedList.sort((a, b) -> {
-                if (a.isVip != b.isVip) return a.isVip ? -1 : 1;
-                return a.appName.compareToIgnoreCase(b.appName);
-            });
-
-            runOnUiThread(() -> {
-                appItems.clear();
-                appItems.addAll(loadedList);
-                adapter.filter(etSearch.getText() != null ? etSearch.getText().toString() : "");
-                pb.setVisibility(View.GONE);
-                rv.setVisibility(View.VISIBLE);
-            });
-        });
-
-        dialogView.findViewById(R.id.btnCancelVip).setOnClickListener(v -> dialog.dismiss());
-        dialogView.findViewById(R.id.btnSaveVip).setOnClickListener(v -> {
-            HashSet<String> newVips = new HashSet<>();
-            for (AppItem item : appItems) {
-                if (item.isVip) {
-                    newVips.add(item.packageName);
-                }
-            }
-            prefs.edit().putStringSet(KEY_VIP_PACKAGES, newVips).apply();
-            String joined = String.join(",", newVips);
-            RootTool.setProp("persist.hchen.adj.vip_packages", joined);
-            updateVipSummary();
-            Toast.makeText(this, getString(R.string.toast_saved_keep_alive_apps, newVips.size()), Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
-            refreshRunningProcesses();
-        });
-
-        dialog.show();
     }
 }

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_dark"
+    android:padding="16dp">
+
+    <!-- Top Action Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/title_logs_header"
+            android:textColor="@color/text_title"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCopyLog"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="@string/btn_copy_log"
+            android:textColor="@color/primary_accent"
+            app:icon="@drawable/ic_copy"
+            app:iconSize="14dp"
+            app:iconTint="@color/primary_accent" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClearLog"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="@string/btn_clear_log"
+            android:textColor="@color/accent_red"
+            app:icon="@drawable/ic_kill"
+            app:iconSize="14dp"
+            app:iconTint="@color/accent_red" />
+    </LinearLayout>
+
+    <!-- Terminal Log Console Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        app:cardBackgroundColor="@color/card_dark"
+        app:strokeColor="@color/card_stroke"
+        app:strokeWidth="1dp"
+        app:cardCornerRadius="14dp">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/tvLogContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/card_inner"
+                android:padding="14dp"
+                android:fontFamily="monospace"
+                android:text="@string/placeholder_log"
+                android:textColor="@color/text_body"
+                android:textSize="11.5sp"
+                android:textIsSelectable="true" />
+        </ScrollView>
+    </com.google.android.material.card.MaterialCardView>
+</LinearLayout>

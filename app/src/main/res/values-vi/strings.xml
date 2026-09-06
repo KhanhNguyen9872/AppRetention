@@ -76,4 +76,25 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="btn_kill_process">Đóng</string>
     <string name="toast_killed_process">Đã buộc dừng %s</string>
     <string name="format_process_pid">PID: %1$d - %2$s</string>
+    <!-- Navigation Tabs -->
+    <string name="nav_dashboard">Tổng quan</string>
+    <string name="nav_keep_alive">Keep-Alive</string>
+    <string name="nav_controls">Thiết lập</string>
+    <string name="nav_logs">Nhật ký</string>
+
+    <!-- Keep-Alive Dedicated Page -->
+    <string name="tab_keep_alive_title">Danh sách Keep-Alive</string>
+    <string name="tab_keep_alive_desc">Các ứng dụng được ghim ADJ 200 miễn nhiễm bị hệ thống tắt.</string>
+    <string name="chip_all_apps">Tất cả (%d)</string>
+    <string name="chip_keep_alive_only">Đang giữ (%d)</string>
+    <string name="badge_keep_alive_locked">ADJ 200</string>
+    <string name="toast_keep_alive_added">Đã ghim %s vào Keep-Alive (ADJ 200)</string>
+    <string name="toast_keep_alive_removed">Đã bỏ %s khỏi Keep-Alive</string>
+
+    <!-- Controls & Logs Pages -->
+    <string name="desc_controls_header">Cấu hình quy tắc giữ app và chặn trình diệt ngầm của hệ thống / OEM.</string>
+    <string name="title_logs_header">Nhật ký Hook Hệ Thống</string>
+    <string name="btn_copy_log">Sao chép</string>
+    <string name="toast_log_copied">Đã sao chép log vào clipboard</string>
+    <string name="toast_log_cleared">Đã xoá nhật ký</string>
 </resources>

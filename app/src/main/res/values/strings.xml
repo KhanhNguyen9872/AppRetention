@@ -76,4 +76,25 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="btn_kill_process">Kill</string>
     <string name="toast_killed_process">Terminated %s</string>
     <string name="format_process_pid">PID: %1$d - %2$s</string>
+    <!-- Navigation Tabs -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_keep_alive">Keep-Alive</string>
+    <string name="nav_controls">Controls</string>
+    <string name="nav_logs">Logs</string>
+
+    <!-- Keep-Alive Dedicated Page -->
+    <string name="tab_keep_alive_title">Keep-Alive List</string>
+    <string name="tab_keep_alive_desc">Apps pinned at ADJ 200 with Zero-Kill Immunity.</string>
+    <string name="chip_all_apps">All Apps (%d)</string>
+    <string name="chip_keep_alive_only">Keep-Alive (%d)</string>
+    <string name="badge_keep_alive_locked">ADJ 200</string>
+    <string name="toast_keep_alive_added">Pinned %s to Keep-Alive (ADJ 200)</string>
+    <string name="toast_keep_alive_removed">Unpinned %s from Keep-Alive</string>
+
+    <!-- Controls & Logs Pages -->
+    <string name="desc_controls_header">Configure System Framework &amp; OEM killer bypass shields.</string>
+    <string name="title_logs_header">Real-Time System Hook Logs</string>
+    <string name="btn_copy_log">Copy</string>
+    <string name="toast_log_copied">Logs copied to clipboard</string>
+    <string name="toast_log_cleared">Logs cleared</string>
 </resources>

@@ -6,4 +6,25 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="btn_kill_process">终止</string>
     <string name="toast_killed_process">已终止 %s</string>
     <string name="format_process_pid">PID: %1$d - %2$s</string>
+    <!-- Navigation Tabs -->
+    <string name="nav_dashboard">仪表盘</string>
+    <string name="nav_keep_alive">保活列表</string>
+    <string name="nav_controls">留存控制</string>
+    <string name="nav_logs">日志</string>
+
+    <!-- Keep-Alive Dedicated Page -->
+    <string name="tab_keep_alive_title">后台保活列表</string>
+    <string name="tab_keep_alive_desc">锁定在 ADJ 200 级别的应用，享有防杀免疫。</string>
+    <string name="chip_all_apps">全部 (%d)</string>
+    <string name="chip_keep_alive_only">已保活 (%d)</string>
+    <string name="badge_keep_alive_locked">ADJ 200</string>
+    <string name="toast_keep_alive_added">已将 %s 加入保活 (ADJ 200)</string>
+    <string name="toast_keep_alive_removed">已将 %s 移出保活</string>
+
+    <!-- Controls & Logs Pages -->
+    <string name="desc_controls_header">配置系统框架及 OEM 后台查杀拦截规则。</string>
+    <string name="title_logs_header">系统实时 Hook 日志</string>
+    <string name="btn_copy_log">复制</string>
+    <string name="toast_log_copied">已复制日志到剪贴板</string>
+    <string name="toast_log_cleared">已清空日志</string>
 </resources>
