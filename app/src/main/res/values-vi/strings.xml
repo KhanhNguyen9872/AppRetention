@@ -75,5 +75,5 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <!-- Process Actions -->
     <string name="btn_kill_process">Đóng</string>
     <string name="toast_killed_process">Đã buộc dừng %s</string>
-    <string name="format_process_pid">PID: %1$d - Used: %2$s</string>
+    <string name="format_process_pid">PID: %1$d - %2$s</string>
 </resources>
