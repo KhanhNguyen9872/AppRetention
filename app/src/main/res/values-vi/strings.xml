@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AppRetention</string>
+    <string name="app_more">Cải thiện khả năng giữ đa nhiệm ứng dụng chạy nền.\nbởi: HChen</string>
+
+    <!-- System Status Card -->
+    <string name="title_system_framework">Khung Hệ Thống (System Framework)</string>
+    <string name="badge_status_active">Hoạt động (API 101)</string>
+    <string name="status_root_detecting">Phạm vi: android (system_server) • Root: Đang kiểm tra...</string>
+    <string name="status_root_requesting">Phạm vi: android (system_server) • Root: Đang yêu cầu quyền...</string>
+    <string name="status_root_active">Phạm vi: android (system_server) • Root: Hoạt động (KernelSU/Magisk/APatch)</string>
+    <string name="status_root_limited">Phạm vi: android (system_server) • Root: Chưa cấp quyền (Chế độ hạn chế)</string>
+    <string name="status_killshield_active">KillShield: Đang hoạt động &amp; Bảo vệ tiến trình ngầm</string>
+    <string name="toast_root_active">Root: Hoạt động với đầy đủ quyền Kernel &amp; System</string>
+
+    <!-- Hardware Monitor Card -->
+    <string name="title_hardware_monitor">Giám Sát Phần Cứng</string>
+    <string name="label_auto_refresh">Tự động: 5s</string>
+    <string name="label_ram_memory">Bộ Nhớ RAM</string>
+    <string name="format_ram_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
+    <string name="format_ram_subtext">Khả dụng: %1$.1f GB • Giảm trừ LMKD: %2$dx</string>
+    <string name="label_cpu_processor">Vi Xử Lý CPU</string>
+    <string name="format_cpu_details">%d%% Tải</string>
+    <string name="format_cpu_subtext">Nhân hoạt động: %d • Tần suất quét: 5s</string>
+    <string name="format_cpu_root_required">Nhân hoạt động: %d • Yêu cầu quyền Root</string>
+    <string name="label_internal_storage">Bộ Nhớ Trong</string>
+    <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
+    <string name="format_storage_subtext">Còn trống: %.1f GB</string>
+
+    <!-- Keep-Alive List Card -->
+    <string name="title_keep_alive_list">Danh Sách Giữ Chạy Nền (Keep-Alive)</string>
+    <string name="desc_keep_alive_list">Các ứng dụng trong danh sách này được khóa cố định tại ADJ 200 và miễn nhiễm hoàn toàn với cơ chế diệt ngầm của hệ thống.</string>
+    <string name="format_keep_alive_summary">Giữ chạy nền: %d ứng dụng (Khóa tại ADJ 200)</string>
+    <string name="btn_select_keep_alive_apps">Chọn Ứng Dụng Giữ Chạy Nền</string>
+    <string name="toast_saved_keep_alive_apps">Đã lưu %d ứng dụng Giữ chạy nền (ADJ 200)</string>
+
+    <!-- Retention Controls Card -->
+    <string name="title_retention_controls">Cấu Hình Giữ Đa Nhiệm</string>
+    <string name="title_tiered_adj">Phân Tầng Kẹp ADJ 200</string>
+    <string name="desc_tiered_adj">Đẩy các app ngầm gần nhất lên phân tầng Perceptible (ADJ 200-245) để giữ trạng thái sống liên tục.</string>
+    <string name="title_killshield">Khiên Bảo Vệ KillShield</string>
+    <string name="desc_killshield">Chặn hệ thống tự động diệt app do quá giờ, tăng tải CPU hoặc dọn dẹp bộ nhớ đệm, nhưng vẫn cho phép vuốt tắt thủ công.</string>
+    <string name="title_doze">Miễn Trừ Chế Độ Doze Tự Động</string>
+    <string name="desc_doze">Duy trì kết nối mạng, báo thức và socket cho tất cả các app chạy nền ngay cả khi tắt màn hình.</string>
+    <string name="title_nubia">Khiên Chống Diệt App RedMagic / Nubia</string>
+    <string name="desc_nubia">Vô hiệu hóa trình dọn dẹp bộ nhớ NeoPower, SmartEngine và GameSpace trên thiết bị RedMagic.</string>
+    <string name="title_hibernation">Tắt Đóng Băng Ứng Dụng (App Hibernation)</string>
+    <string name="desc_hibernation">Ngăn Android tự động đóng băng các app ít dùng hoặc tự ý thu hồi quyền hạn.</string>
+    <string name="title_autostart">Bỏ Qua Giới Hạn Tự Khởi Chạy Của OEM</string>
+    <string name="desc_autostart">Đảm bảo tất cả app người dùng nhận được tín hiệu BOOT_COMPLETED khi khởi động lại máy.</string>
+
+    <!-- Active Background Processes Card -->
+    <string name="title_active_processes">Tiến Trình Chạy Ngầm Đang Hoạt Động</string>
+    <string name="format_process_count">%d ứng dụng</string>
+    <string name="status_root_not_granted_scanning">Root: Chưa cấp quyền (Quét giới hạn)</string>
+
+    <!-- Retention Log Card -->
+    <string name="title_retention_log">Nhật Ký Hoạt Động (Log)</string>
+    <string name="btn_clear_log">Xóa</string>
+    <string name="placeholder_log">Nhật ký sẽ xuất hiện tại đây khi có sự kiện can thiệp đa nhiệm...</string>
+
+    <!-- Root Permission Explanation Dialog -->
+    <string name="dialog_root_title">Quyền Root Chưa Được Cấp</string>
+    <string name="dialog_root_message">AppRetention vẫn đang hoạt động ổn định ở tầng System Framework (các cơ chế khóa ADJ 200 và chống kill ngầm của module Xposed vẫn có hiệu lực).\n\nTuy nhiên, quyền Root là cần thiết để:\n• Đọc chính xác 100% tài nguyên phần cứng (CPU kernel load, RAM meminfo, Storage df).\n• Quét danh sách tiến trình chạy ngầm &amp; OOM Score ADJ theo thời gian thực.\n• Đồng bộ các thuộc tính hệ thống (persist properties) ngay lập tức.\n\nBạn có thể cấp quyền trong Magisk, KernelSU hoặc APatch bất cứ lúc nào.</string>
+    <string name="btn_dialog_retry_root">Thử lại / Cấp quyền</string>
+    <string name="btn_dialog_continue_limited">Tiếp tục (Chế độ hạn chế)</string>
+
+    <!-- Keep-Alive Selection Dialog -->
+    <string name="dialog_keep_alive_title">Danh Sách Giữ Chạy Nền</string>
+    <string name="dialog_keep_alive_subtitle">Các ứng dụng được chọn sẽ được khóa tại ADJ 200 (Miễn nhiễm diệt ngầm).</string>
+    <string name="hint_search_apps">Tìm kiếm ứng dụng...</string>
+    <string name="btn_cancel">Hủy</string>
+    <string name="btn_save">Lưu</string>
+</resources>

@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Keep-Alive List"
+        android:text="@string/dialog_keep_alive_title"
         android:textColor="@color/text_title"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -17,7 +17,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Selected apps remain locked at ADJ 200 (Zero-Kill Immunity)."
+        android:text="@string/dialog_keep_alive_subtitle"
         android:textColor="@color/text_body"
         android:textSize="12sp"
         android:layout_marginTop="2dp"
@@ -27,7 +27,7 @@
         android:id="@+id/etSearchApp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Search application..."
+        android:hint="@string/hint_search_apps"
         android:textColorHint="@color/text_muted"
         android:textColor="@color/text_title"
         android:background="@color/card_inner"
@@ -60,14 +60,14 @@
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Cancel"
+            android:text="@string/btn_cancel"
             android:textColor="@color/text_body" />
 
         <Button
             android:id="@+id/btnSaveVip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Save"
+            android:text="@string/btn_save"
             android:layout_marginStart="8dp" />
     </LinearLayout>
 </LinearLayout>

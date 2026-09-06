@@ -166,7 +166,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!RootTool.isRootAvailable()) {
                     checkAndPromptRoot();
                 } else {
-                    Toast.makeText(this, "Root: Hoạt động với đầy đủ quyền Kernel & System", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.toast_root_active, Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -230,16 +230,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkAndPromptRoot() {
         if (tvModeDetail != null) {
-            tvModeDetail.setText("Scope: android (system_server) • Root: Requesting superuser...");
+            tvModeDetail.setText(getString(R.string.status_root_requesting));
         }
         sWorkerPool.execute(() -> {
             boolean hasRoot = RootTool.requestRoot();
             runOnUiThread(() -> {
                 if (hasRoot) {
-                    tvModeDetail.setText("Scope: android (system_server) • Root: Active (KernelSU/Magisk/APatch)");
+                    tvModeDetail.setText(getString(R.string.status_root_active));
                     tvModeDetail.setTextColor(0xFF22C55E);
                 } else {
-                    tvModeDetail.setText("Scope: android (system_server) • Root: Not Granted (Limited Mode)");
+                    tvModeDetail.setText(getString(R.string.status_root_limited));
                     tvModeDetail.setTextColor(0xFFF59E0B);
                     showRootExplanationDialog();
                 }
@@ -252,13 +252,13 @@ public class MainActivity extends AppCompatActivity {
         if (isFinishing() || isDestroyed()) return;
 
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Quyền Root Chưa Được Cấp")
-            .setMessage("AppRetention vẫn đang hoạt động ổn định ở tầng System Framework (các cơ chế khóa ADJ 200 và chống kill ngầm của module Xposed vẫn có hiệu lực).\n\nTuy nhiên, quyền Root là cần thiết để:\n• Đọc chính xác 100% tài nguyên phần cứng (CPU kernel load, RAM meminfo, Storage df).\n• Quét danh sách tiến trình chạy ngầm & OOM Score ADJ theo thời gian thực.\n• Đồng bộ các thuộc tính hệ thống (persist properties) ngay lập tức.\n\nBạn có thể cấp quyền trong Magisk, KernelSU hoặc APatch bất cứ lúc nào.")
-            .setPositiveButton("Thử lại / Cấp quyền", (dialog, which) -> {
+            .setTitle(R.string.dialog_root_title)
+            .setMessage(R.string.dialog_root_message)
+            .setPositiveButton(R.string.btn_dialog_retry_root, (dialog, which) -> {
                 RootTool.resetRootCheck();
                 checkAndPromptRoot();
             })
-            .setNegativeButton("Tiếp tục (Chế độ hạn chế)", (dialog, which) -> dialog.dismiss())
+            .setNegativeButton(R.string.btn_dialog_continue_limited, (dialog, which) -> dialog.dismiss())
             .setCancelable(true)
             .show();
     }
@@ -329,27 +329,27 @@ public class MainActivity extends AppCompatActivity {
 
             runOnUiThread(() -> {
                 // Update RAM
-                tvRamDetails.setText(String.format("%.1f GB / %.1f GB (%d%%)", usedRamGb, totalRamGb, ramPercent));
-                tvRamSubtext.setText(String.format("Available: %.1f GB • LMKD MinFree Discount: %dx", availRamGb, discount));
+                tvRamDetails.setText(getString(R.string.format_ram_details, usedRamGb, totalRamGb, ramPercent));
+                tvRamSubtext.setText(getString(R.string.format_ram_subtext, availRamGb, discount));
                 pbRam.setProgress(ramPercent);
 
                 // Update CPU
                 if (cpuPercent >= 0) {
-                    tvCpuDetails.setText(String.format(Locale.US, "%d%% Load", cpuPercent));
-                    tvCpuSubtext.setText(String.format(Locale.US, "Active Cores: %d • Sampling rate: 5s", cores));
+                    tvCpuDetails.setText(getString(R.string.format_cpu_details, cpuPercent));
+                    tvCpuSubtext.setText(getString(R.string.format_cpu_subtext, cores));
                     pbCpu.setProgress(cpuPercent);
                 } else {
                     tvCpuDetails.setText("N/A");
-                    tvCpuSubtext.setText(String.format(Locale.US, "Active Cores: %d • Root required", cores));
+                    tvCpuSubtext.setText(getString(R.string.format_cpu_root_required, cores));
                     pbCpu.setProgress(0);
                 }
 
                 // Update Storage
-                tvStorageDetails.setText(String.format("%.1f GB / %.1f GB (%d%%)", usedStorageGb, totalStorageGb, storagePercent));
-                tvStorageSubtext.setText(String.format("Free: %.1f GB", freeStorageGb));
+                tvStorageDetails.setText(getString(R.string.format_storage_details, usedStorageGb, totalStorageGb, storagePercent));
+                tvStorageSubtext.setText(getString(R.string.format_storage_subtext, freeStorageGb));
                 pbStorage.setProgress(storagePercent);
 
-                tvShieldCount.setText("KillShield: Active & Shielding Background Kills");
+                tvShieldCount.setText(getString(R.string.status_killshield_active));
             });
         });
     }
@@ -475,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateVipSummary() {
         Set<String> vips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
-        tvVipSummary.setText(String.format("Keep-Alive: %d apps (Locked at ADJ 200)", vips.size()));
+        tvVipSummary.setText(getString(R.string.format_keep_alive_summary, vips.size()));
     }
 
     private void refreshRunningProcesses() {
@@ -554,7 +554,7 @@ public class MainActivity extends AppCompatActivity {
 
             runOnUiThread(() -> {
                 processAdapter.updateList(items);
-                tvProcessCount.setText(items.size() + " apps active");
+                tvProcessCount.setText(getString(R.string.format_process_count, items.size()));
             });
         });
     }
@@ -694,7 +694,7 @@ public class MainActivity extends AppCompatActivity {
             String joined = String.join(",", newVips);
             RootTool.setProp("persist.hchen.adj.vip_packages", joined);
             updateVipSummary();
-            Toast.makeText(this, "Saved " + newVips.size() + " Keep-Alive apps (ADJ 200)", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.toast_saved_keep_alive_apps, newVips.size()), Toast.LENGTH_SHORT).show();
             dialog.dismiss();
             refreshRunningProcesses();
         });

@@ -1,4 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AppRetention</string>
-    <string name="app_more">Improved application retention capability. \nby:焕晨HChen</string>
+    <string name="app_more">Improved application retention capability.\nby: HChen</string>
+
+    <!-- System Status Card -->
+    <string name="title_system_framework">System Framework</string>
+    <string name="badge_status_active">Active (API 101)</string>
+    <string name="status_root_detecting">Scope: android (system_server) • Root: Detecting...</string>
+    <string name="status_root_requesting">Scope: android (system_server) • Root: Requesting superuser...</string>
+    <string name="status_root_active">Scope: android (system_server) • Root: Active (KernelSU/Magisk/APatch)</string>
+    <string name="status_root_limited">Scope: android (system_server) • Root: Not Granted (Limited Mode)</string>
+    <string name="status_killshield_active">KillShield: Active &amp; Shielding Background Kills</string>
+    <string name="toast_root_active">Root: Active with full Kernel &amp; System access</string>
+
+    <!-- Hardware Monitor Card -->
+    <string name="title_hardware_monitor">Hardware Monitor</string>
+    <string name="label_auto_refresh">Auto: 5s</string>
+    <string name="label_ram_memory">RAM Memory</string>
+    <string name="format_ram_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
+    <string name="format_ram_subtext">Available: %1$.1f GB • LMKD MinFree Discount: %2$dx</string>
+    <string name="label_cpu_processor">CPU Processor</string>
+    <string name="format_cpu_details">%d%% Load</string>
+    <string name="format_cpu_subtext">Active Cores: %d • Sampling rate: 5s</string>
+    <string name="format_cpu_root_required">Active Cores: %d • Root required</string>
+    <string name="label_internal_storage">Internal Storage</string>
+    <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
+    <string name="format_storage_subtext">Free: %.1f GB</string>
+
+    <!-- Keep-Alive List Card -->
+    <string name="title_keep_alive_list">Keep-Alive List</string>
+    <string name="desc_keep_alive_list">Apps in this list are locked at ADJ 200 with complete kill immunity, ensuring they are never terminated in the background.</string>
+    <string name="format_keep_alive_summary">Keep-Alive: %d apps (Locked at ADJ 200)</string>
+    <string name="btn_select_keep_alive_apps">Select Keep-Alive Apps</string>
+    <string name="toast_saved_keep_alive_apps">Saved %d Keep-Alive apps (ADJ 200)</string>
+
+    <!-- Retention Controls Card -->
+    <string name="title_retention_controls">Retention Controls</string>
+    <string name="title_tiered_adj">Tiered ADJ 200 Clamping</string>
+    <string name="desc_tiered_adj">Bumps top background apps to Perceptible tier (ADJ 200-245) for persistent background retention.</string>
+    <string name="title_killshield">KillShield Protection</string>
+    <string name="desc_killshield">Blocks automated system kills from timeout, cpu spikes, and idle sweeps while allowing manual swipe.</string>
+    <string name="title_doze">Doze Mode Auto-Exemption</string>
+    <string name="desc_doze">Keeps network sockets, alarms, and sockets active for all background apps when screen is off.</string>
+    <string name="title_nubia">RedMagic / Nubia Killer Shield</string>
+    <string name="desc_nubia">Suppresses NeoPower, SmartEngine, and GameSpace background memory purgers on RedMagic devices.</string>
+    <string name="title_hibernation">Disable App Hibernation</string>
+    <string name="desc_hibernation">Prevents Android from freezing unused apps or revoking their permissions.</string>
+    <string name="title_autostart">Bypass OEM Auto-Start Restrictions</string>
+    <string name="desc_autostart">Ensures all user apps receive BOOT_COMPLETED intents on phone restart.</string>
+
+    <!-- Active Background Processes Card -->
+    <string name="title_active_processes">Active Background Processes</string>
+    <string name="format_process_count">%d apps</string>
+    <string name="status_root_not_granted_scanning">Root: Not Granted (Limited Scanning)</string>
+
+    <!-- Retention Log Card -->
+    <string name="title_retention_log">Retention Log</string>
+    <string name="btn_clear_log">Clear</string>
+    <string name="placeholder_log">Log will appear here as retention events occur...</string>
+
+    <!-- Root Permission Explanation Dialog -->
+    <string name="dialog_root_title">Root Permission Not Granted</string>
+    <string name="dialog_root_message">AppRetention is still actively functioning as an Xposed Module in System Framework (ADJ 200 locking and kill prevention remain fully effective).\n\nHowever, Root access is required to:\n• Accurately read 100% hardware metrics (kernel CPU load, RAM meminfo, storage df).\n• Scan running background processes &amp; OOM Score ADJ in real time.\n• Synchronize system persist properties immediately.\n\nYou can grant Root permission in Magisk, KernelSU, or APatch anytime.</string>
+    <string name="btn_dialog_retry_root">Retry / Grant</string>
+    <string name="btn_dialog_continue_limited">Continue (Limited Mode)</string>
+
+    <!-- Keep-Alive Selection Dialog -->
+    <string name="dialog_keep_alive_title">Keep-Alive List</string>
+    <string name="dialog_keep_alive_subtitle">Selected apps remain locked at ADJ 200 (Zero-Kill Immunity).</string>
+    <string name="hint_search_apps">Search application...</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_save">Save</string>
 </resources>

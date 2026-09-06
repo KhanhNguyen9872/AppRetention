@@ -79,7 +79,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="System Framework"
+                                android:text="@string/title_system_framework"
                                 android:textColor="@color/text_title"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
@@ -88,7 +88,7 @@
                                 android:id="@+id/tvStatusBadge"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Active (API 101)"
+                                android:text="@string/badge_status_active"
                                 android:textColor="@color/accent_green"
                                 android:background="@drawable/bg_badge_green"
                                 android:paddingStart="10dp"
@@ -103,7 +103,7 @@
                             android:id="@+id/tvModeDetail"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Scope: android (system_server) • Root: Detecting..."
+                            android:text="@string/status_root_detecting"
                             android:textColor="@color/text_body"
                             android:textSize="13sp" />
 
@@ -112,7 +112,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
-                            android:text="KillShield: Active &amp; Monitoring"
+                            android:text="@string/status_killshield_active"
                             android:textColor="@color/primary_accent"
                             android:textSize="13sp"
                             android:textStyle="bold" />
@@ -146,7 +146,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Hardware Monitor"
+                                android:text="@string/title_hardware_monitor"
                                 android:textColor="@color/text_title"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
@@ -155,7 +155,7 @@
                                 android:id="@+id/tvRefreshIndicator"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Auto: 5s"
+                                android:text="@string/label_auto_refresh"
                                 android:textColor="@color/primary_accent"
                                 android:background="@color/card_inner"
                                 android:paddingStart="8dp"
@@ -175,7 +175,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="RAM Memory"
+                                android:text="@string/label_ram_memory"
                                 android:textColor="@color/text_title"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
@@ -223,7 +223,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CPU Processor"
+                                android:text="@string/label_cpu_processor"
                                 android:textColor="@color/text_title"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
@@ -271,7 +271,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Internal Storage"
+                                android:text="@string/label_internal_storage"
                                 android:textColor="@color/text_title"
                                 android:textSize="13sp"
                                 android:textStyle="bold" />
@@ -329,7 +329,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Keep-Alive List"
+                            android:text="@string/title_keep_alive_list"
                             android:textColor="@color/text_title"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -337,7 +337,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Apps in this list are locked at ADJ 200 with complete kill immunity, ensuring they are never terminated in the background."
+                            android:text="@string/desc_keep_alive_list"
                             android:textColor="@color/text_body"
                             android:textSize="13sp"
                             android:layout_marginTop="4dp" />
@@ -347,7 +347,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="Keep-Alive: 0 apps"
+                            android:text="@string/title_keep_alive_list"
                             android:textColor="@color/primary_accent"
                             android:textSize="13sp"
                             android:textStyle="bold" />
@@ -356,7 +356,7 @@
                             android:id="@+id/btnManageVip"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Select Keep-Alive Apps"
+                            android:text="@string/btn_select_keep_alive_apps"
                             android:layout_marginTop="12dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -380,7 +380,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Retention Controls"
+                            android:text="@string/title_retention_controls"
                             android:textColor="@color/text_title"
                             android:textSize="18sp"
                             android:textStyle="bold"
@@ -391,13 +391,13 @@
                             android:id="@+id/switchTieredAdj"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Tiered ADJ 200 Clamping"
+                            android:text="@string/title_tiered_adj"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Bumps top background apps to Perceptible tier (ADJ 200-245) for persistent background retention."
+                            android:text="@string/desc_tiered_adj"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
@@ -407,13 +407,13 @@
                             android:id="@+id/switchKillShield"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="KillShield Protection"
+                            android:text="@string/title_killshield"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Blocks automated system kills from timeout, cpu spikes, and idle sweeps while allowing manual swipe."
+                            android:text="@string/desc_killshield"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
@@ -423,13 +423,13 @@
                             android:id="@+id/switchDoze"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Doze Mode Auto-Exemption"
+                            android:text="@string/title_doze"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Keeps network sockets, alarms, and sockets active for all background apps when screen is off."
+                            android:text="@string/desc_doze"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
@@ -439,13 +439,13 @@
                             android:id="@+id/switchNubia"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="RedMagic / Nubia Killer Shield"
+                            android:text="@string/title_nubia"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Suppresses NeoPower, SmartEngine, and GameSpace background memory purgers on RedMagic devices."
+                            android:text="@string/desc_nubia"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
@@ -455,13 +455,13 @@
                             android:id="@+id/switchHibernation"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Disable App Hibernation"
+                            android:text="@string/title_hibernation"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Prevents Android from freezing unused apps or revoking their permissions."
+                            android:text="@string/desc_hibernation"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
                             android:layout_marginBottom="12dp" />
@@ -471,13 +471,13 @@
                             android:id="@+id/switchAutoStart"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Bypass OEM Auto-Start Restrictions"
+                            android:text="@string/title_autostart"
                             android:textColor="@color/text_title"
                             android:checked="true" />
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Ensures all user apps receive BOOT_COMPLETED intents on phone restart."
+                            android:text="@string/desc_autostart"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -510,7 +510,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Active Background Processes"
+                                android:text="@string/title_active_processes"
                                 android:textColor="@color/text_title"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
@@ -558,7 +558,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Retention Log"
+                                android:text="@string/title_retention_log"
                                 android:textColor="@color/text_title"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
@@ -568,7 +568,7 @@
                                 style="@style/Widget.Material3.Button.TextButton"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Clear"
+                                android:text="@string/btn_clear_log"
                                 android:textColor="@color/text_body" />
                         </LinearLayout>
 
@@ -581,7 +581,7 @@
                             android:background="@color/card_inner"
                             android:padding="12dp"
                             android:fontFamily="monospace"
-                            android:text="Log will appear here as retention events occur..."
+                            android:text="@string/placeholder_log"
                             android:textColor="@color/text_body"
                             android:textSize="11sp" />
                     </LinearLayout>
