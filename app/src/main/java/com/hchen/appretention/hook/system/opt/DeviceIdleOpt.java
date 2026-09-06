@@ -66,6 +66,7 @@ public final class DeviceIdleOpt {
 
     private static boolean isTargetUserApp(String packageName) {
         if (packageName == null || packageName.isEmpty()) return false;
+        if (BackgroundRestrictOpt.isRestricted(packageName)) return false;
         if ("android".equals(packageName)) return false;
         if (packageName.startsWith("com.android.providers.")) return false;
         if (packageName.startsWith("com.android.server.")) return false;

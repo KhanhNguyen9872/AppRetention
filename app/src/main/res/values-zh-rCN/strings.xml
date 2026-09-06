@@ -41,4 +41,12 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="summary_restricted_desc">此列表中的应用在多任务界面被划掉清除时将立即被彻底终止。</string>
     <string name="format_restricted_summary">%d 个应用</string>
 
+    <!-- System App Restriction Warning & Hints -->
+    <string name="dialog_system_app_restrict_title">系统应用警告</string>
+    <string name="dialog_system_app_restrict_message">限制系统应用 \"%s\" 的后台运行可能导致系统不稳定、推送丢失或功能异常。\n\n确定要限制该应用吗？</string>
+    <string name="btn_yes_continue">是，继续限制</string>
+    <string name="btn_no_cancel">取消</string>
+    <string name="toast_app_is_restricted_hint">\"%s\" 当前已被限制后台运行。若要保活，请先在后台限制列表中取消限制。</string>
+    <string name="badge_restricted_short">已受限</string>
+
 </resources>

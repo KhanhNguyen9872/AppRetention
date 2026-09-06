@@ -111,4 +111,12 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="summary_restricted_desc">Apps in this list will be terminated immediately when swiped out from Recents.</string>
     <string name="format_restricted_summary">%d apps restricted</string>
 
+    <!-- System App Restriction Warning & Hints -->
+    <string name="dialog_system_app_restrict_title">System App Warning</string>
+    <string name="dialog_system_app_restrict_message">Restricting background execution for system application \"%s\" may cause system instability, missing push notifications, or abnormal service behavior.\n\nAre you sure you want to restrict this app?</string>
+    <string name="btn_yes_continue">Yes, Restrict</string>
+    <string name="btn_no_cancel">Cancel</string>
+    <string name="toast_app_is_restricted_hint">\"%s\" is currently restricted. Unrestrict it in the Restricted tab first to enable Keep-Alive.</string>
+    <string name="badge_restricted_short">RESTRICTED</string>
+
 </resources>

@@ -301,42 +301,35 @@ public class MainActivity extends AppCompatActivity {
         if (rvKeepAliveApps != null) {
             rvKeepAliveApps.setLayoutManager(new LinearLayoutManager(this));
             keepAliveAdapter = new KeepAliveAdapter(allInstalledApps);
-            keepAliveAdapter.setOnAppStateChangeListener((item, mode, enabled, position) -> {
-                Set<String> vipSet = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
-                Set<String> restrictSet = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
-
-                if (mode == KeepAliveAdapter.MODE_KEEP_ALIVE) {
-                    if (enabled) {
-                        vipSet.add(item.packageName);
-                        restrictSet.remove(item.packageName);
-                        item.isRestricted = false;
-                        Toast.makeText(this, getString(R.string.toast_keep_alive_added, item.appName), Toast.LENGTH_SHORT).show();
-                    } else {
-                        vipSet.remove(item.packageName);
-                        Toast.makeText(this, getString(R.string.toast_keep_alive_removed, item.appName), Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    if (enabled) {
-                        restrictSet.add(item.packageName);
-                        vipSet.remove(item.packageName);
-                        item.isVip = false;
-                        Toast.makeText(this, getString(R.string.toast_restricted_added, item.appName), Toast.LENGTH_SHORT).show();
-                    } else {
-                        restrictSet.remove(item.packageName);
-                        Toast.makeText(this, getString(R.string.toast_restricted_removed, item.appName), Toast.LENGTH_SHORT).show();
-                    }
+            keepAliveAdapter.setOnAppStateChangeListener(new KeepAliveAdapter.OnAppStateChangeListener() {
+                @Override
+                public void onAppStateChanged(AppItem item, int mode, boolean enabled, int position) {
+                    applyAppStateChange(item, mode, enabled);
                 }
 
-                prefs.edit()
-                        .putStringSet(KEY_VIP_PACKAGES, vipSet)
-                        .putStringSet(KEY_RESTRICT_PACKAGES, restrictSet)
-                        .apply();
+                @Override
+                public void onSystemAppRestrictedRequested(AppItem item, int position) {
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle(R.string.dialog_system_app_restrict_title)
+                            .setMessage(getString(R.string.dialog_system_app_restrict_message, item.appName))
+                            .setPositiveButton(R.string.btn_yes_continue, (dialog, which) -> {
+                                item.isRestricted = true;
+                                item.isVip = false;
+                                if (keepAliveAdapter != null) keepAliveAdapter.notifyItemChanged(position);
+                                applyAppStateChange(item, KeepAliveAdapter.MODE_RESTRICTED, true);
+                            })
+                            .setNegativeButton(R.string.btn_no_cancel, (dialog, which) -> {
+                                item.isRestricted = false;
+                                if (keepAliveAdapter != null) keepAliveAdapter.notifyItemChanged(position);
+                            })
+                            .setCancelable(false)
+                            .show();
+                }
 
-                RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
-                RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
-
-                updateKeepAliveHeader();
-                refreshRunningProcesses();
+                @Override
+                public void onRestrictedItemClickedInKeepAlive(AppItem item) {
+                    Toast.makeText(MainActivity.this, getString(R.string.toast_app_is_restricted_hint, item.appName), Toast.LENGTH_SHORT).show();
+                }
             });
             rvKeepAliveApps.setAdapter(keepAliveAdapter);
         }
@@ -524,6 +517,44 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    private void applyAppStateChange(AppItem item, int mode, boolean enabled) {
+        Set<String> vipSet = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
+        Set<String> restrictSet = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
+
+        if (mode == KeepAliveAdapter.MODE_KEEP_ALIVE) {
+            if (enabled) {
+                vipSet.add(item.packageName);
+                restrictSet.remove(item.packageName);
+                item.isRestricted = false;
+                Toast.makeText(this, getString(R.string.toast_keep_alive_added, item.appName), Toast.LENGTH_SHORT).show();
+            } else {
+                vipSet.remove(item.packageName);
+                Toast.makeText(this, getString(R.string.toast_keep_alive_removed, item.appName), Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            if (enabled) {
+                restrictSet.add(item.packageName);
+                vipSet.remove(item.packageName);
+                item.isVip = false;
+                Toast.makeText(this, getString(R.string.toast_restricted_added, item.appName), Toast.LENGTH_SHORT).show();
+            } else {
+                restrictSet.remove(item.packageName);
+                Toast.makeText(this, getString(R.string.toast_restricted_removed, item.appName), Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        prefs.edit()
+                .putStringSet(KEY_VIP_PACKAGES, vipSet)
+                .putStringSet(KEY_RESTRICT_PACKAGES, restrictSet)
+                .apply();
+
+        RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
+        RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
+
+        updateKeepAliveHeader();
+        refreshRunningProcesses();
+    }
+
     private void updateKeepAliveHeader() {
         if (keepAliveAdapter == null) return;
         int currentMode = keepAliveAdapter.getMode();
@@ -619,7 +650,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                loadedList.add(new AppItem(label, ai.packageName, icon, isPinned, isRestricted));
+                boolean isSysApp = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+                loadedList.add(new AppItem(label, ai.packageName, icon, isPinned, isRestricted, isSysApp));
             }
 
             loadedList.sort((a, b) -> {

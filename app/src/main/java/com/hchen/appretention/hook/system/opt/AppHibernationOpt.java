@@ -40,6 +40,11 @@ public final class AppHibernationOpt {
                     public void before() {
                         Object[] args = getArgs();
                         if (args != null && args.length > 0) {
+                            Object pkgArg = getArg(0);
+                            String pkg = pkgArg != null ? pkgArg.toString() : null;
+                            if (pkg != null && BackgroundRestrictOpt.isRestricted(pkg)) {
+                                return; // Bỏ qua app bị giới hạn nền, cho phép ngủ đông
+                            }
                             Object val = args[args.length - 1];
                             if (Boolean.TRUE.equals(val)) {
                                 XposedLog.logI(TAG, "Prevented app hibernation for: " + getArg(0));

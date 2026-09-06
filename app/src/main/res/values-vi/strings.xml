@@ -111,4 +111,12 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="summary_restricted_desc">Các ứng dụng trong danh sách này sẽ bị chặn và đóng hoàn toàn khi bạn vuốt xóa khỏi Đa nhiệm.</string>
     <string name="format_restricted_summary">%d ứng dụng</string>
 
+    <!-- System App Restriction Warning & Hints -->
+    <string name="dialog_system_app_restrict_title">Cảnh báo ứng dụng hệ thống</string>
+    <string name="dialog_system_app_restrict_message">Chặn chạy ngầm cho ứng dụng hệ thống \"%s\" có thể gây lỗi hệ thống, mất thông báo hoặc dịch vụ hoạt động bất thường.\n\nBạn có chắc chắn muốn hạn chế ứng dụng này?</string>
+    <string name="btn_yes_continue">Có, tiếp tục</string>
+    <string name="btn_no_cancel">Hủy bỏ</string>
+    <string name="toast_app_is_restricted_hint">\"%s\" đang bị hạn chế chạy ngầm. Hãy bỏ cấm ở tab Cấm chạy ngầm trước nếu muốn giữ nền.</string>
+    <string name="badge_restricted_short">HẠN CHẾ NỀN</string>
+
 </resources>

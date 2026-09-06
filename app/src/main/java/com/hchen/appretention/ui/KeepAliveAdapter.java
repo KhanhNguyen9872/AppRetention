@@ -22,6 +22,8 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
 
     public interface OnAppStateChangeListener {
         void onAppStateChanged(AppItem item, int mode, boolean enabled, int position);
+        void onSystemAppRestrictedRequested(AppItem item, int position);
+        void onRestrictedItemClickedInKeepAlive(AppItem item);
     }
 
     private final List<AppItem> fullList = new ArrayList<>();
@@ -131,12 +133,27 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
         }
 
         if (currentMode == MODE_KEEP_ALIVE) {
-            holder.tvBadgeLocked.setVisibility(item.isVip ? View.VISIBLE : View.GONE);
-            holder.tvBadgeRestricted.setVisibility(View.GONE);
-            holder.switchKeepAlive.setChecked(item.isVip);
+            if (item.isRestricted) {
+                // Greyed out and restricted
+                holder.itemView.setAlpha(0.4f);
+                holder.switchKeepAlive.setEnabled(false);
+                holder.switchKeepAlive.setChecked(false);
+                holder.tvBadgeLocked.setVisibility(View.GONE);
+                holder.tvBadgeRestricted.setVisibility(View.VISIBLE);
+                holder.tvBadgeRestricted.setText(R.string.badge_restricted_short);
+            } else {
+                holder.itemView.setAlpha(1.0f);
+                holder.switchKeepAlive.setEnabled(true);
+                holder.switchKeepAlive.setChecked(item.isVip);
+                holder.tvBadgeLocked.setVisibility(item.isVip ? View.VISIBLE : View.GONE);
+                holder.tvBadgeRestricted.setVisibility(View.GONE);
+            }
         } else {
+            holder.itemView.setAlpha(1.0f);
+            holder.switchKeepAlive.setEnabled(true);
             holder.tvBadgeLocked.setVisibility(View.GONE);
             holder.tvBadgeRestricted.setVisibility(item.isRestricted ? View.VISIBLE : View.GONE);
+            holder.tvBadgeRestricted.setText(R.string.badge_restricted);
             holder.switchKeepAlive.setChecked(item.isRestricted);
         }
 
@@ -145,15 +162,26 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
             if (pos != RecyclerView.NO_POSITION && pos < displayList.size()) {
                 AppItem currentItem = displayList.get(pos);
                 if (currentMode == MODE_KEEP_ALIVE) {
+                    if (currentItem.isRestricted) {
+                        if (listener != null) {
+                            listener.onRestrictedItemClickedInKeepAlive(currentItem);
+                        }
+                        return;
+                    }
                     boolean newState = !currentItem.isVip;
                     currentItem.isVip = newState;
-                    if (newState) currentItem.isRestricted = false;
                     notifyItemChanged(pos);
                     if (listener != null) {
                         listener.onAppStateChanged(currentItem, MODE_KEEP_ALIVE, newState, pos);
                     }
                 } else {
                     boolean newState = !currentItem.isRestricted;
+                    if (newState && currentItem.isSystemApp) {
+                        if (listener != null) {
+                            listener.onSystemAppRestrictedRequested(currentItem, pos);
+                        }
+                        return;
+                    }
                     currentItem.isRestricted = newState;
                     if (newState) currentItem.isVip = false;
                     notifyItemChanged(pos);

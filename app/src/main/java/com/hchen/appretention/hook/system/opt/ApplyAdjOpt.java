@@ -265,6 +265,17 @@ public class ApplyAdjOpt {
             ApplicationInfo info = (ApplicationInfo) getField(app, SystemField.info);
             if (info == null) return;
 
+            // Bỏ qua cho những app bị giới hạn nền trong tính năng mở rộng giới hạn nền
+            if (BackgroundRestrictOpt.isRestricted(info.packageName)) {
+                if (mProcessRecordMap.contains(app)) {
+                    mPreviousBackgroundAppList.removeIf(
+                        processIndexRecord -> Objects.equals(processIndexRecord.app, app)
+                    );
+                    mProcessRecordMap.remove(app);
+                }
+                return;
+            }
+
             if (mUserAppMap.contains(info.packageName) || !isSystemApp(info)) {
                 mUserAppMap.add(info.packageName);
 
