@@ -281,6 +281,16 @@
                             android:textSize="12.5sp"
                             android:textStyle="bold" />
                     </LinearLayout>
+                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                        android:id="@+id/pbGpuUsage"
+                        android:layout_width="match_parent"
+                        android:layout_height="6dp"
+                        android:max="100"
+                        android:progress="0"
+                        app:trackCornerRadius="3dp"
+                        app:indicatorColor="@color/accent_cyan"
+                        app:trackColor="@color/card_inner"
+                        android:layout_marginBottom="4dp" />
                     <TextView
                         android:id="@+id/tvDisplaySubtext"
                         android:layout_width="match_parent"

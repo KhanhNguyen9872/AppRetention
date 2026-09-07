@@ -151,6 +151,109 @@ public class HardwareInfo {
         return sRamType != null ? sRamType : "";
     }
 
+    public static class GpuStats {
+        public final int loadPercent;
+        public final int clockMhz;
+
+        public GpuStats(int loadPercent, int clockMhz) {
+            this.loadPercent = loadPercent;
+            this.clockMhz = clockMhz;
+        }
+    }
+
+    private static volatile String sWorkingGpuBusyPath = null;
+    private static volatile String sWorkingGpuFreqPath = null;
+
+    public static GpuStats getGpuStats() {
+        int load = -1;
+        int clockMhz = 0;
+
+        // 1. GPU Busy / Load percentage
+        String[] busyPaths = sWorkingGpuBusyPath != null ?
+            new String[]{sWorkingGpuBusyPath} :
+            new String[]{
+                "/sys/class/kgsl/kgsl-3d0/gpubusy",
+                "/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage",
+                "/sys/module/ged/parameters/gpu_loading",
+                "/sys/kernel/gpu/gpu_busy",
+                "/sys/class/misc/mali0/device/utilization",
+                "/sys/devices/platform/13040000.mali/utilization",
+                "/sys/devices/platform/17000000.mali/utilization",
+                "/sys/devices/platform/soc/3d00000.qcom,kgsl-3d0/kgsl/kgsl-3d0/gpubusy",
+                "/sys/devices/platform/soc/3d00000.qcom,kgsl-3d0/kgsl/kgsl-3d0/gpu_busy_percentage"
+            };
+
+        for (String p : busyPaths) {
+            String line = readFileFirstLine(p);
+            if (line == null && RootTool.hasRoot()) {
+                line = RootTool.runCommand("cat " + p + " 2>/dev/null");
+            }
+            if (line != null && !line.trim().isEmpty()) {
+                String clean = line.trim();
+                String[] parts = clean.split("\\s+");
+                if (parts.length >= 2) {
+                    try {
+                        long busy = Long.parseLong(parts[0].trim());
+                        long total = Long.parseLong(parts[1].trim());
+                        if (total > 0) {
+                            load = (int) Math.min(100, Math.max(0, (busy * 100) / total));
+                            sWorkingGpuBusyPath = p;
+                            break;
+                        }
+                    } catch (Throwable ignored) {}
+                } else if (parts.length == 1) {
+                    try {
+                        String valStr = parts[0].replace("%", "").trim();
+                        int val = Integer.parseInt(valStr);
+                        if (val >= 0 && val <= 100) {
+                            load = val;
+                            sWorkingGpuBusyPath = p;
+                            break;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+        }
+
+        // 2. GPU Clock frequency
+        String[] freqPaths = sWorkingGpuFreqPath != null ?
+            new String[]{sWorkingGpuFreqPath} :
+            new String[]{
+                "/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq",
+                "/sys/class/kgsl/kgsl-3d0/gpuclk",
+                "/sys/module/ged/parameters/gpu_cur_freq",
+                "/sys/class/misc/mali0/device/cur_freq",
+                "/sys/devices/platform/soc/3d00000.qcom,kgsl-3d0/kgsl/kgsl-3d0/devfreq/3d00000.qcom,kgsl-3d0/cur_freq"
+            };
+
+        for (String p : freqPaths) {
+            String line = readFileFirstLine(p);
+            if (line == null && RootTool.hasRoot()) {
+                line = RootTool.runCommand("cat " + p + " 2>/dev/null");
+            }
+            if (line != null && !line.trim().isEmpty()) {
+                try {
+                    long freq = Long.parseLong(line.trim());
+                    if (freq > 100000000L) {
+                        clockMhz = (int) (freq / 1000000L);
+                        sWorkingGpuFreqPath = p;
+                        break;
+                    } else if (freq > 100000L) {
+                        clockMhz = (int) (freq / 1000L);
+                        sWorkingGpuFreqPath = p;
+                        break;
+                    } else if (freq > 100) {
+                        clockMhz = (int) freq;
+                        sWorkingGpuFreqPath = p;
+                        break;
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
+
+        return new GpuStats(load, clockMhz);
+    }
+
     public static String getGpuModel() {
         if (sGpuModel == null) detectGpu();
         return sGpuModel != null ? sGpuModel : "Adreno GPU";

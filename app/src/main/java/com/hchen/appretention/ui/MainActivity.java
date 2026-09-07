@@ -120,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearProgressIndicator pbStorageUsage;
 
     private TextView tvGpuDetails;
+    private com.google.android.material.progressindicator.LinearProgressIndicator pbGpuUsage;
     private TextView tvDisplaySubtext;
     private TextView tvBatteryDetails;
     private TextView tvBatterySubtext;
@@ -341,6 +342,7 @@ public class MainActivity extends AppCompatActivity {
         pbStorageUsage = findViewById(R.id.pbStorageUsage);
 
         tvGpuDetails = findViewById(R.id.tvGpuDetails);
+        pbGpuUsage = findViewById(R.id.pbGpuUsage);
         tvDisplaySubtext = findViewById(R.id.tvDisplaySubtext);
         tvBatteryDetails = findViewById(R.id.tvBatteryDetails);
         tvBatterySubtext = findViewById(R.id.tvBatterySubtext);
@@ -1167,6 +1169,7 @@ public class MainActivity extends AppCompatActivity {
             // 4. GPU & Display Info
             String gpuModel = HardwareInfo.getGpuModel();
             String displayInfo = HardwareInfo.getDisplayInfo(MainActivity.this);
+            HardwareInfo.GpuStats gpuStats = HardwareInfo.getGpuStats();
 
             // 5. Battery & Thermal Info
             HardwareInfo.BatteryInfo bInfo = HardwareInfo.getBatteryInfo(MainActivity.this);
@@ -1222,7 +1225,25 @@ public class MainActivity extends AppCompatActivity {
                 if (pbStorageUsage != null) pbStorageUsage.setProgress(storagePercent);
 
                 // GPU & Display
-                if (tvGpuDetails != null) tvGpuDetails.setText(gpuModel);
+                if (tvGpuDetails != null) {
+                    if (gpuStats.loadPercent >= 0 && gpuStats.clockMhz > 0) {
+                        tvGpuDetails.setText(getString(R.string.format_gpu_details_load_clock, gpuModel, gpuStats.loadPercent, gpuStats.clockMhz));
+                    } else if (gpuStats.loadPercent >= 0) {
+                        tvGpuDetails.setText(getString(R.string.format_gpu_details_load, gpuModel, gpuStats.loadPercent));
+                    } else if (gpuStats.clockMhz > 0) {
+                        tvGpuDetails.setText(getString(R.string.format_gpu_details_clock, gpuModel, gpuStats.clockMhz));
+                    } else {
+                        tvGpuDetails.setText(gpuModel);
+                    }
+                }
+                if (pbGpuUsage != null) {
+                    if (gpuStats.loadPercent >= 0) {
+                        pbGpuUsage.setVisibility(View.VISIBLE);
+                        pbGpuUsage.setProgress(gpuStats.loadPercent);
+                    } else {
+                        pbGpuUsage.setVisibility(View.GONE);
+                    }
+                }
                 if (tvDisplaySubtext != null) tvDisplaySubtext.setText(displayInfo);
 
                 // Battery & Thermal
