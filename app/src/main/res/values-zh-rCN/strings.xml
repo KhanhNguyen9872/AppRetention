@@ -98,4 +98,14 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_copied_to_clipboard">已复制 %s 到剪贴板</string>
 
     <string name="loading_processes">正在扫描后台运行进程...</string>
+    <string name="format_ram_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
+    <string name="format_ram_subtext">可用: %1$.1f GB • LMKD: %2$dx • %3$s</string>
+    <string name="format_ram_subtext_notype">可用: %1$.1f GB • LMKD: %2$dx</string>
+    <string name="format_cpu_details">%d%% 负载</string>
+    <string name="format_cpu_subtext">%1$s • %2$d 核心</string>
+    <string name="format_cpu_subtext_nocores">%s</string>
+    <string name="format_cpu_root_required">%1$s • %2$d 核心</string>
+    <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
+    <string name="format_storage_subtext">剩余: %.1f GB</string>
+    <string name="format_storage_subtext_type">剩余: %1$.1f GB • %2$s</string>
 </resources>

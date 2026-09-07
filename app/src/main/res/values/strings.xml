@@ -19,14 +19,17 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="label_auto_refresh">Auto: 5s</string>
     <string name="label_ram_memory">RAM Memory</string>
     <string name="format_ram_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
-    <string name="format_ram_subtext">Available: %1$.1f GB • LMKD MinFree Discount: %2$dx</string>
+    <string name="format_ram_subtext">Available: %1$.1f GB • LMKD: %2$dx • %3$s</string>
+    <string name="format_ram_subtext_notype">Available: %1$.1f GB • LMKD: %2$dx</string>
     <string name="label_cpu_processor">CPU Processor</string>
     <string name="format_cpu_details">%d%% Load</string>
-    <string name="format_cpu_subtext">Active Cores: %d • Sampling rate: 5s</string>
-    <string name="format_cpu_root_required">Active Cores: %d • Root required</string>
+    <string name="format_cpu_subtext">%1$s • %2$d Cores</string>
+    <string name="format_cpu_subtext_nocores">%s</string>
+    <string name="format_cpu_root_required">%1$s • %2$d Cores</string>
     <string name="label_internal_storage">Internal Storage</string>
     <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
     <string name="format_storage_subtext">Free: %.1f GB</string>
+    <string name="format_storage_subtext_type">Free: %1$.1f GB • %2$s</string>
 
     <!-- Keep-Alive List Card -->
     <string name="title_keep_alive_list">Keep-Alive List</string>

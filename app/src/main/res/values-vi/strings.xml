@@ -19,14 +19,17 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="label_auto_refresh">Tự động: 5s</string>
     <string name="label_ram_memory">Bộ Nhớ RAM</string>
     <string name="format_ram_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
-    <string name="format_ram_subtext">Khả dụng: %1$.1f GB • Giảm trừ LMKD: %2$dx</string>
+    <string name="format_ram_subtext">Khả dụng: %1$.1f GB • LMKD: %2$dx • %3$s</string>
+    <string name="format_ram_subtext_notype">Khả dụng: %1$.1f GB • LMKD: %2$dx</string>
     <string name="label_cpu_processor">Vi Xử Lý CPU</string>
     <string name="format_cpu_details">%d%% Tải</string>
-    <string name="format_cpu_subtext">Nhân hoạt động: %d • Tần suất quét: 5s</string>
-    <string name="format_cpu_root_required">Nhân hoạt động: %d • Yêu cầu quyền Root</string>
+    <string name="format_cpu_subtext">%1$s • %2$d nhân</string>
+    <string name="format_cpu_subtext_nocores">%s</string>
+    <string name="format_cpu_root_required">%1$s • %2$d nhân</string>
     <string name="label_internal_storage">Bộ Nhớ Trong</string>
     <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
     <string name="format_storage_subtext">Còn trống: %.1f GB</string>
+    <string name="format_storage_subtext_type">Còn trống: %1$.1f GB • %2$s</string>
 
     <!-- Keep-Alive List Card -->
     <string name="title_keep_alive_list">Danh Sách Giữ Chạy Nền (Keep-Alive)</string>

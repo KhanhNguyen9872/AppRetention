@@ -1037,10 +1037,12 @@ public class MainActivity extends AppCompatActivity {
             double totalRamGb = totalRamBytes / (1024.0 * 1024.0 * 1024.0);
             double availRamGb = availRamBytes / (1024.0 * 1024.0 * 1024.0);
             int discount = (int) Math.round(totalRamGb) >= 15 ? 5 : ((int) Math.round(totalRamGb) >= 11 ? 4 : 3);
+            String ramType = HardwareInfo.getRamType();
 
             // 2. CPU Calculation
             int cpuPercent = readCpuUsage(rootStats != null ? rootStats.cpuLine : null);
             int cores = Runtime.getRuntime().availableProcessors();
+            String socName = HardwareInfo.getSocName();
 
             // 3. Storage Calculation
             long totalStorageBytes = 0;
@@ -1067,24 +1069,39 @@ public class MainActivity extends AppCompatActivity {
             double usedStorageGb = usedStorageBytes / (1024.0 * 1024.0 * 1024.0);
             double totalStorageGb = totalStorageBytes / (1024.0 * 1024.0 * 1024.0);
             double freeStorageGb = freeStorageBytes / (1024.0 * 1024.0 * 1024.0);
+            String storageType = HardwareInfo.getStorageType();
 
             runOnUiThread(() -> {
                 if (tvRamDetails != null) tvRamDetails.setText(getString(R.string.format_ram_details, usedRamGb, totalRamGb, ramPercent));
-                if (tvRamSubtext != null) tvRamSubtext.setText(getString(R.string.format_ram_subtext, availRamGb, discount));
+                if (tvRamSubtext != null) {
+                    if (ramType != null && !ramType.isEmpty()) {
+                        tvRamSubtext.setText(getString(R.string.format_ram_subtext, availRamGb, discount, ramType));
+                    } else {
+                        tvRamSubtext.setText(getString(R.string.format_ram_subtext_notype, availRamGb, discount));
+                    }
+                }
                 if (pbRamUsage != null) pbRamUsage.setProgress(ramPercent);
 
-                if (cpuPercent >= 0) {
-                    if (tvCpuDetails != null) tvCpuDetails.setText(getString(R.string.format_cpu_details, cpuPercent));
-                    if (tvCpuSubtext != null) tvCpuSubtext.setText(getString(R.string.format_cpu_subtext, cores));
-                    if (pbCpuUsage != null) pbCpuUsage.setProgress(cpuPercent);
-                } else {
-                    if (tvCpuDetails != null) tvCpuDetails.setText("N/A");
-                    if (tvCpuSubtext != null) tvCpuSubtext.setText(getString(R.string.format_cpu_root_required, cores));
-                    if (pbCpuUsage != null) pbCpuUsage.setProgress(0);
+                if (tvCpuDetails != null) {
+                    tvCpuDetails.setText(cpuPercent >= 0 ? getString(R.string.format_cpu_details, cpuPercent) : "N/A");
                 }
+                if (tvCpuSubtext != null) {
+                    if (socName != null && !socName.isEmpty()) {
+                        tvCpuSubtext.setText(getString(R.string.format_cpu_subtext, socName, cores));
+                    } else {
+                        tvCpuSubtext.setText(getString(R.string.format_cpu_subtext_nocores, cores + " Cores"));
+                    }
+                }
+                if (pbCpuUsage != null) pbCpuUsage.setProgress(Math.max(0, cpuPercent));
 
                 if (tvStorageDetails != null) tvStorageDetails.setText(getString(R.string.format_storage_details, usedStorageGb, totalStorageGb, storagePercent));
-                if (tvStorageSubtext != null) tvStorageSubtext.setText(getString(R.string.format_storage_subtext, freeStorageGb));
+                if (tvStorageSubtext != null) {
+                    if (storageType != null && !storageType.isEmpty()) {
+                        tvStorageSubtext.setText(getString(R.string.format_storage_subtext_type, freeStorageGb, storageType));
+                    } else {
+                        tvStorageSubtext.setText(getString(R.string.format_storage_subtext, freeStorageGb));
+                    }
+                }
                 if (pbStorageUsage != null) pbStorageUsage.setProgress(storagePercent);
 
                 if (tvShieldStatus != null) tvShieldStatus.setText(getString(R.string.status_killshield_active));

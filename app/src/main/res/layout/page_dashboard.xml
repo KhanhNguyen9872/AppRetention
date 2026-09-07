@@ -202,7 +202,7 @@
                         android:id="@+id/tvCpuSubtext"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Sampling rate: 5s"
+                        android:text="Processor Info"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"
                         android:layout_marginBottom="14dp" />
