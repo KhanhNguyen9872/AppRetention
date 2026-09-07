@@ -72,7 +72,7 @@
 
         <!-- 1. Dashboard Page -->
         <include
-            android:id="@+id/pageDashboard"
+            android:id="@+id/swipeRefreshDashboard"
             layout="@layout/page_dashboard"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

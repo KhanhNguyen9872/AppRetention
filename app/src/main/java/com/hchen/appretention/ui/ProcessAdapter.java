@@ -108,24 +108,17 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
         boolean isVip = vipPackages.contains(basePkg);
         boolean isRestricted = restrictedPackages.contains(basePkg);
 
-        if (isVip) {
-            holder.tvBadge.setText("ADJ " + item.adj + " • " + holder.itemView.getContext().getString(R.string.badge_proc_keep_alive));
+        holder.tvBadge.setText("ADJ " + item.adj);
+        if (isVip || item.adj <= 249) {
             holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_green);
             holder.tvBadge.setTextColor(0xFF22C55E);
         } else if (isRestricted) {
-            holder.tvBadge.setText("ADJ " + item.adj + " • " + holder.itemView.getContext().getString(R.string.badge_proc_restricted));
             holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_red);
             holder.tvBadge.setTextColor(0xFFEF4444);
-        } else if (item.adj <= 249) {
-            holder.tvBadge.setText("ADJ " + item.adj + " [PERCEPTIBLE]");
-            holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_green);
-            holder.tvBadge.setTextColor(0xFF22C55E);
         } else if (item.adj <= 499) {
-            holder.tvBadge.setText("ADJ " + item.adj + " [BACKUP]");
             holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_amber);
             holder.tvBadge.setTextColor(0xFF38BDF8);
         } else {
-            holder.tvBadge.setText("ADJ " + item.adj + " [SERVICE]");
             holder.tvBadge.setBackgroundResource(R.drawable.bg_badge_amber);
             holder.tvBadge.setTextColor(0xFFF59E0B);
         }

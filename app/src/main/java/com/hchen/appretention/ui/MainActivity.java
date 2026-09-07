@@ -227,15 +227,14 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // Page Containers
-        pageDashboard = findViewById(R.id.pageDashboard);
+        // Page Containers & Tab 1: Dashboard Initialization
+        swipeRefreshDashboard = findViewById(R.id.swipeRefreshDashboard);
+        pageDashboard = swipeRefreshDashboard;
         pageKeepAlive = findViewById(R.id.pageKeepAlive);
         pageControls = findViewById(R.id.pageControls);
         pageLogs = findViewById(R.id.pageLogs);
         bottomNavigation = findViewById(R.id.bottomNavigation);
 
-        // --- Tab 1: Dashboard Initialization ---
-        swipeRefreshDashboard = findViewById(R.id.swipeRefreshDashboard);
         if (swipeRefreshDashboard != null) {
             swipeRefreshDashboard.setColorSchemeColors(0xFF38BDF8, 0xFF22C55E, 0xFFF59E0B);
             swipeRefreshDashboard.setProgressBackgroundColorSchemeColor(0xFF151C2C);
