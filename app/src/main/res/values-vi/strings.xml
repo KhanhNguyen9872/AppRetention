@@ -139,4 +139,32 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_log_saved">Đã lưu nhật ký vào: %s</string>
     <string name="toast_log_empty">Không có nhật ký nào để lưu</string>
     <string name="title_share_log">Chia sẻ nhật ký AppRetention</string>
+
+    <!-- Process Details Sheet -->
+    <string name="sheet_title_process_details">Chi tiết tiến trình</string>
+    <string name="sheet_metrics_title">THÔNG SỐ &amp; CHUẨN ĐOÁN</string>
+    <string name="sheet_policy_title">CHÍNH SÁCH BẢO LƯU NỀN</string>
+    <string name="sheet_sw_keep_alive_title">Giữ chạy ngầm (ADJ 200)</string>
+    <string name="sheet_sw_keep_alive_desc">Khóa tiến trình ở ADJ 200, ngăn hệ thống dọn dẹp khi thiếu RAM.</string>
+    <string name="sheet_sw_restrict_title">Hạn chế chạy ngầm</string>
+    <string name="sheet_sw_restrict_desc">Cấm chạy nền, tự động dọn dẹp hoặc diệt tiến trình khi rời ứng dụng.</string>
+    <string name="sheet_btn_kill">Diệt tiến trình</string>
+    <string name="sheet_btn_force_stop">Buộc dừng</string>
+    <string name="sheet_btn_open_app">Mở ứng dụng</string>
+    <string name="sheet_btn_app_info">Cài đặt ứng dụng</string>
+    <string name="sheet_type_system">HỆ THỐNG</string>
+    <string name="sheet_type_user">NGƯỜI DÙNG</string>
+    <string name="sheet_label_pid">PID</string>
+    <string name="sheet_label_uid">UID</string>
+    <string name="sheet_label_ram">RAM</string>
+    <string name="sheet_label_adj">OOM ADJ</string>
+    <string name="sheet_status_vip">Bảo vệ giữ chạy ngầm (ADJ 200)</string>
+    <string name="sheet_status_restricted">Bị hạn chế (Dọn dẹp khi thoát / thiếu RAM)</string>
+    <string name="sheet_status_foreground">Tiến trình tiền cảnh / Đang hiển thị</string>
+    <string name="sheet_status_perceptible">Tiến trình có thể nhận biết / Âm thanh / Thông báo</string>
+    <string name="sheet_status_service">Tiến trình dịch vụ nền</string>
+    <string name="sheet_status_cached">Tiến trình bộ nhớ đệm (Ưu tiên thấp)</string>
+    <string name="toast_force_stop_success">Đã buộc dừng %s</string>
+    <string name="toast_copied_to_clipboard">Đã sao chép %s vào bộ nhớ tạm</string>
+
 </resources>

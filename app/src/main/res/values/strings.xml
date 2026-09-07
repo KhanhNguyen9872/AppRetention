@@ -139,4 +139,32 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_log_saved">Logs saved to: %s</string>
     <string name="toast_log_empty">No logs available to save</string>
     <string name="title_share_log">Share AppRetention Logs</string>
+
+    <!-- Process Details Sheet -->
+    <string name="sheet_title_process_details">Process Details</string>
+    <string name="sheet_metrics_title">DIAGNOSTICS &amp; METRICS</string>
+    <string name="sheet_policy_title">RETENTION &amp; RESTRICTION POLICIES</string>
+    <string name="sheet_sw_keep_alive_title">Keep-Alive (ADJ 200)</string>
+    <string name="sheet_sw_keep_alive_desc">Lock at ADJ 200 to prevent system from killing app on low memory.</string>
+    <string name="sheet_sw_restrict_title">Restrict Background</string>
+    <string name="sheet_sw_restrict_desc">Prevent background execution, terminating on app exit or memory pressure.</string>
+    <string name="sheet_btn_kill">Kill Process</string>
+    <string name="sheet_btn_force_stop">Force Stop</string>
+    <string name="sheet_btn_open_app">Open App</string>
+    <string name="sheet_btn_app_info">App Info</string>
+    <string name="sheet_type_system">SYSTEM</string>
+    <string name="sheet_type_user">USER</string>
+    <string name="sheet_label_pid">PID</string>
+    <string name="sheet_label_uid">UID</string>
+    <string name="sheet_label_ram">RAM</string>
+    <string name="sheet_label_adj">OOM ADJ</string>
+    <string name="sheet_status_vip">Keep-Alive Protection (ADJ 200)</string>
+    <string name="sheet_status_restricted">Restricted (Clean on exit / low RAM)</string>
+    <string name="sheet_status_foreground">Foreground / Active on Screen</string>
+    <string name="sheet_status_perceptible">Perceptible / Media / Notification</string>
+    <string name="sheet_status_service">Background Service</string>
+    <string name="sheet_status_cached">Cached Process (Low Priority)</string>
+    <string name="toast_force_stop_success">Force stopped %s</string>
+    <string name="toast_copied_to_clipboard">Copied %s to clipboard</string>
+
 </resources>

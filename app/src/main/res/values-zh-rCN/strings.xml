@@ -69,4 +69,32 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_log_saved">日志已保存至: %s</string>
     <string name="toast_log_empty">暂无可保存的日志</string>
     <string name="title_share_log">分享日志</string>
+
+    <!-- Process Details Sheet -->
+    <string name="sheet_title_process_details">进程详情</string>
+    <string name="sheet_metrics_title">运行诊断与指标</string>
+    <string name="sheet_policy_title">后台保活与限制策略</string>
+    <string name="sheet_sw_keep_alive_title">常驻后台 (ADJ 200)</string>
+    <string name="sheet_sw_keep_alive_desc">锁定在 ADJ 200，防止内存不足时被系统杀死。</string>
+    <string name="sheet_sw_restrict_title">限制后台运行</string>
+    <string name="sheet_sw_restrict_desc">禁止后台驻留，退出应用后强制清理或终止进程。</string>
+    <string name="sheet_btn_kill">结束进程</string>
+    <string name="sheet_btn_force_stop">强行停止</string>
+    <string name="sheet_btn_open_app">打开应用</string>
+    <string name="sheet_btn_app_info">应用信息</string>
+    <string name="sheet_type_system">系统应用</string>
+    <string name="sheet_type_user">用户应用</string>
+    <string name="sheet_label_pid">PID</string>
+    <string name="sheet_label_uid">UID</string>
+    <string name="sheet_label_ram">内存</string>
+    <string name="sheet_label_adj">OOM ADJ</string>
+    <string name="sheet_status_vip">保活锁定保护 (ADJ 200)</string>
+    <string name="sheet_status_restricted">后台受限 (退出/内存紧张时清理)</string>
+    <string name="sheet_status_foreground">前台活跃进程 / 正在屏幕显示</string>
+    <string name="sheet_status_perceptible">可感知进程 / 正在播放音频或通知</string>
+    <string name="sheet_status_service">后台服务进程</string>
+    <string name="sheet_status_cached">缓存进程 (低优先级)</string>
+    <string name="toast_force_stop_success">已强行停止 %s</string>
+    <string name="toast_copied_to_clipboard">已复制 %s 到剪贴板</string>
+
 </resources>

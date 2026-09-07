@@ -114,6 +114,21 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
         return currentMode == MODE_KEEP_ALIVE ? getVipCount() : getRestrictedCount();
     }
 
+    public void updatePackageState(String packageName, boolean isVip, boolean isRestricted) {
+        boolean found = false;
+        for (AppItem item : fullList) {
+            if (item.packageName != null && item.packageName.equals(packageName)) {
+                item.isVip = isVip;
+                item.isRestricted = isRestricted;
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            applyFilter();
+        }
+    }
+
     public int getTotalCount() {
         return fullList.size();
     }

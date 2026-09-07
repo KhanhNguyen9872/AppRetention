@@ -19,6 +19,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -30,6 +31,7 @@ import android.os.StatFs;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.LruCache;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -235,10 +237,16 @@ public class MainActivity extends AppCompatActivity {
         // --- Tab 1: Dashboard Initialization ---
         swipeRefreshDashboard = findViewById(R.id.swipeRefreshDashboard);
         if (swipeRefreshDashboard != null) {
+            swipeRefreshDashboard.setColorSchemeColors(0xFF38BDF8, 0xFF22C55E, 0xFFF59E0B);
+            swipeRefreshDashboard.setProgressBackgroundColorSchemeColor(0xFF151C2C);
             swipeRefreshDashboard.setOnRefreshListener(() -> {
                 updateHardwareStats();
                 refreshRunningProcesses();
-                swipeRefreshDashboard.setRefreshing(false);
+                swipeRefreshDashboard.postDelayed(() -> {
+                    if (swipeRefreshDashboard != null && swipeRefreshDashboard.isRefreshing()) {
+                        swipeRefreshDashboard.setRefreshing(false);
+                    }
+                }, 2500);
             });
         }
 
@@ -272,24 +280,7 @@ public class MainActivity extends AppCompatActivity {
         if (rvProcesses != null) {
             rvProcesses.setLayoutManager(new LinearLayoutManager(this));
             processAdapter = new ProcessAdapter(processList);
-            processAdapter.setOnProcessKillListener((item, position) -> {
-                RootTool.killProcess(item.pid, item.packageName);
-                try {
-                    ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-                    if (am != null) {
-                        String pkg = item.packageName;
-                        if (pkg.contains(":")) {
-                            pkg = pkg.substring(0, pkg.indexOf(':'));
-                        }
-                        am.killBackgroundProcesses(pkg);
-                    }
-                } catch (Throwable ignored) {}
-
-                Toast.makeText(MainActivity.this, getString(R.string.toast_killed_process, item.appName), Toast.LENGTH_SHORT).show();
-                processAdapter.removeItem(position);
-                tvProcessCount.setText(getString(R.string.format_process_count, processAdapter.getItemCount()));
-                mTimerHandler.postDelayed(this::refreshRunningProcesses, 1000);
-            });
+            processAdapter.setOnProcessClickListener((item, position) -> showProcessDetailsDialog(item, position));
             processAdapter.setPolicyPackages(
                 prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()),
                 prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet())
@@ -623,6 +614,278 @@ public class MainActivity extends AppCompatActivity {
         refreshRunningProcesses();
     }
 
+
+    private void applyPolicyToPackage(String packageName, String appName, boolean keepAlive, boolean restricted) {
+        Set<String> vipSet = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
+        Set<String> restrictSet = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
+
+        if (keepAlive) {
+            vipSet.add(packageName);
+            restrictSet.remove(packageName);
+            Toast.makeText(this, getString(R.string.toast_keep_alive_added, appName), Toast.LENGTH_SHORT).show();
+        } else if (restricted) {
+            restrictSet.add(packageName);
+            vipSet.remove(packageName);
+            Toast.makeText(this, getString(R.string.toast_restricted_added, appName), Toast.LENGTH_SHORT).show();
+        } else {
+            vipSet.remove(packageName);
+            restrictSet.remove(packageName);
+        }
+
+        prefs.edit()
+                .putStringSet(KEY_VIP_PACKAGES, vipSet)
+                .putStringSet(KEY_RESTRICT_PACKAGES, restrictSet)
+                .apply();
+
+        RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
+        RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
+
+        syncPolicyFiles(vipSet, restrictSet);
+
+        if (processAdapter != null) {
+            processAdapter.setPolicyPackages(vipSet, restrictSet);
+        }
+
+        if (keepAliveAdapter != null) {
+            keepAliveAdapter.updatePackageState(packageName, keepAlive, restricted);
+        }
+
+        updateKeepAliveHeader();
+        refreshRunningProcesses();
+    }
+
+    private void showProcessDetailsDialog(ProcessItem item, int position) {
+        if (item == null || isFinishing() || isDestroyed()) return;
+
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.sheet_process_details, null);
+        sheet.setContentView(view);
+
+        // 1. Header bindings
+        ImageView ivIcon = view.findViewById(R.id.ivDetailIcon);
+        TextView tvName = view.findViewById(R.id.tvDetailAppName);
+        TextView tvType = view.findViewById(R.id.tvDetailAppType);
+        TextView tvPackage = view.findViewById(R.id.tvDetailPackage);
+        ImageView btnCopy = view.findViewById(R.id.btnCopyPackage);
+        TextView tvProcName = view.findViewById(R.id.tvDetailProcessName);
+        TextView tvVersion = view.findViewById(R.id.tvDetailVersion);
+
+        if (item.icon != null) ivIcon.setImageDrawable(item.icon);
+        tvName.setText(item.appName);
+        final String basePkg = item.getBasePackageName();
+        tvPackage.setText(basePkg);
+
+        if (item.isSystemApp) {
+            tvType.setText(R.string.sheet_type_system);
+            tvType.setTextColor(0xFFEF4444);
+            tvType.setBackgroundResource(R.drawable.bg_badge_red);
+        } else {
+            tvType.setText(R.string.sheet_type_user);
+            tvType.setTextColor(0xFF38BDF8);
+            tvType.setBackgroundResource(R.drawable.bg_badge_amber);
+        }
+
+        if (item.packageName != null && !item.packageName.equals(basePkg)) {
+            tvProcName.setVisibility(View.VISIBLE);
+            tvProcName.setText(item.packageName);
+        } else {
+            tvProcName.setVisibility(View.GONE);
+        }
+
+        if (item.versionName != null && !item.versionName.isEmpty()) {
+            tvVersion.setText("v" + item.versionName);
+            tvVersion.setVisibility(View.VISIBLE);
+        } else {
+            tvVersion.setVisibility(View.GONE);
+        }
+
+        btnCopy.setOnClickListener(v -> {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null) {
+                ClipData clip = ClipData.newPlainText("Package Name", basePkg);
+                cm.setPrimaryClip(clip);
+                Toast.makeText(this, getString(R.string.toast_copied_to_clipboard, basePkg), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 2. Metrics bindings
+        TextView tvPid = view.findViewById(R.id.tvDetailPid);
+        TextView tvUid = view.findViewById(R.id.tvDetailUid);
+        TextView tvRam = view.findViewById(R.id.tvDetailRam);
+        TextView tvAdj = view.findViewById(R.id.tvDetailAdj);
+        TextView tvStatusDesc = view.findViewById(R.id.tvDetailStatusDesc);
+
+        tvPid.setText(String.valueOf(item.pid));
+        tvUid.setText(item.uid > 0 ? String.valueOf(item.uid) : "N/A");
+        tvRam.setText(item.getFormattedMemory());
+        tvAdj.setText(String.valueOf(item.adj));
+
+        // Helper to update status description based on current policy and adj
+        Runnable updateStatusBanner = () -> {
+            Set<String> vips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
+            Set<String> restricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
+            if (vips.contains(basePkg)) {
+                tvStatusDesc.setText(getString(R.string.sheet_status_vip));
+                tvStatusDesc.setTextColor(0xFF22C55E);
+                tvAdj.setText("200");
+                tvAdj.setTextColor(0xFF22C55E);
+            } else if (restricted.contains(basePkg)) {
+                tvStatusDesc.setText(getString(R.string.sheet_status_restricted));
+                tvStatusDesc.setTextColor(0xFFEF4444);
+                tvAdj.setText(String.valueOf(item.adj));
+                tvAdj.setTextColor(0xFFEF4444);
+            } else if (item.adj <= 0) {
+                tvStatusDesc.setText(getString(R.string.sheet_status_foreground));
+                tvStatusDesc.setTextColor(0xFF22C55E);
+                tvAdj.setTextColor(0xFF22C55E);
+            } else if (item.adj <= 249) {
+                tvStatusDesc.setText(getString(R.string.sheet_status_perceptible));
+                tvStatusDesc.setTextColor(0xFF38BDF8);
+                tvAdj.setTextColor(0xFF38BDF8);
+            } else if (item.adj <= 800) {
+                tvStatusDesc.setText(getString(R.string.sheet_status_service));
+                tvStatusDesc.setTextColor(0xFFF59E0B);
+                tvAdj.setTextColor(0xFFF59E0B);
+            } else {
+                tvStatusDesc.setText(getString(R.string.sheet_status_cached));
+                tvStatusDesc.setTextColor(0xFF94A3B8);
+                tvAdj.setTextColor(0xFF94A3B8);
+            }
+        };
+        updateStatusBanner.run();
+
+        // 3. Retention & Restriction Switches
+        MaterialSwitch swKeepAlive = view.findViewById(R.id.swDetailKeepAlive);
+        MaterialSwitch swRestrict = view.findViewById(R.id.swDetailRestrict);
+
+        Set<String> currentVips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
+        Set<String> currentRestricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
+        swKeepAlive.setChecked(currentVips.contains(basePkg));
+        swRestrict.setChecked(currentRestricted.contains(basePkg));
+
+        final boolean[] isProgrammatic = {false};
+
+        swKeepAlive.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isProgrammatic[0]) return;
+            if (isChecked) {
+                if (swRestrict.isChecked()) {
+                    isProgrammatic[0] = true;
+                    swRestrict.setChecked(false);
+                    isProgrammatic[0] = false;
+                }
+                applyPolicyToPackage(basePkg, item.appName, true, false);
+            } else {
+                applyPolicyToPackage(basePkg, item.appName, false, false);
+            }
+            updateStatusBanner.run();
+        });
+
+        swRestrict.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isProgrammatic[0]) return;
+            if (isChecked) {
+                if (item.isSystemApp) {
+                    isProgrammatic[0] = true;
+                    swRestrict.setChecked(false);
+                    isProgrammatic[0] = false;
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle(R.string.dialog_system_app_restrict_title)
+                            .setMessage(getString(R.string.dialog_system_app_restrict_message, item.appName))
+                            .setPositiveButton(R.string.btn_yes_continue, (d, which) -> {
+                                if (swKeepAlive.isChecked()) {
+                                    isProgrammatic[0] = true;
+                                    swKeepAlive.setChecked(false);
+                                    isProgrammatic[0] = false;
+                                }
+                                isProgrammatic[0] = true;
+                                swRestrict.setChecked(true);
+                                isProgrammatic[0] = false;
+                                applyPolicyToPackage(basePkg, item.appName, false, true);
+                                updateStatusBanner.run();
+                            })
+                            .setNegativeButton(R.string.btn_no_cancel, null)
+                            .show();
+                    return;
+                }
+                if (swKeepAlive.isChecked()) {
+                    isProgrammatic[0] = true;
+                    swKeepAlive.setChecked(false);
+                    isProgrammatic[0] = false;
+                }
+                applyPolicyToPackage(basePkg, item.appName, false, true);
+            } else {
+                applyPolicyToPackage(basePkg, item.appName, false, false);
+            }
+            updateStatusBanner.run();
+        });
+
+        // 4. Action Buttons
+        MaterialButton btnKill = view.findViewById(R.id.btnDetailKill);
+        MaterialButton btnForceStop = view.findViewById(R.id.btnDetailForceStop);
+        MaterialButton btnOpenApp = view.findViewById(R.id.btnDetailOpenApp);
+        MaterialButton btnAppInfo = view.findViewById(R.id.btnDetailAppInfo);
+
+        btnKill.setOnClickListener(v -> {
+            RootTool.killProcess(item.pid, item.packageName);
+            try {
+                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) am.killBackgroundProcesses(basePkg);
+            } catch (Throwable ignored) {}
+            Toast.makeText(this, getString(R.string.toast_killed_process, item.appName), Toast.LENGTH_SHORT).show();
+            sheet.dismiss();
+            mTimerHandler.postDelayed(this::refreshRunningProcesses, 500);
+        });
+
+        btnForceStop.setOnClickListener(v -> {
+            sWorkerPool.execute(() -> {
+                RootTool.runCommand("am force-stop " + basePkg);
+                try {
+                    ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                    if (am != null) am.killBackgroundProcesses(basePkg);
+                } catch (Throwable ignored) {}
+                runOnUiThread(() -> {
+                    Toast.makeText(this, getString(R.string.toast_force_stop_success, item.appName), Toast.LENGTH_SHORT).show();
+                    sheet.dismiss();
+                    mTimerHandler.postDelayed(this::refreshRunningProcesses, 500);
+                });
+            });
+        });
+
+        PackageManager pm = getPackageManager();
+        Intent launchIntent = null;
+        try {
+            launchIntent = pm.getLaunchIntentForPackage(basePkg);
+        } catch (Throwable ignored) {}
+
+        if (launchIntent != null) {
+            final Intent intentToLaunch = launchIntent;
+            btnOpenApp.setOnClickListener(v -> {
+                try {
+                    startActivity(intentToLaunch);
+                    sheet.dismiss();
+                } catch (Throwable t) {
+                    Toast.makeText(this, "Cannot open app", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            btnOpenApp.setEnabled(false);
+            btnOpenApp.setAlpha(0.4f);
+        }
+
+        btnAppInfo.setOnClickListener(v -> {
+            try {
+                Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.fromParts("package", basePkg, null));
+                startActivity(intent);
+                sheet.dismiss();
+            } catch (Throwable t) {
+                Toast.makeText(this, "Cannot open app settings", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        sheet.show();
+    }
+
     private void updateKeepAliveHeader() {
         if (keepAliveAdapter == null) return;
         int currentMode = keepAliveAdapter.getMode();
@@ -912,29 +1175,34 @@ public class MainActivity extends AppCompatActivity {
             PackageManager pm = getPackageManager();
             Set<String> vipSet = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
 
-            if (RootTool.isRootAvailable()) {
-                List<RootTool.ProcessInfo> rootProcs = RootTool.getRunningProcesses();
-                Set<String> restrictSet = prefs != null ? prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()) : Collections.emptySet();
-                boolean immediateKill = prefs != null && prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
+            try {
+                if (RootTool.isRootAvailable()) {
+                    List<RootTool.ProcessInfo> rootProcs = RootTool.getRunningProcesses();
+                    Set<String> restrictSet = prefs != null ? prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()) : Collections.emptySet();
+                    boolean immediateKill = prefs != null && prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
 
-                for (RootTool.ProcessInfo pi : rootProcs) {
-                    String pkg = pi.processName;
-                    if (pkg.contains(":")) {
-                        pkg = pkg.substring(0, pkg.indexOf(':'));
-                    }
-                    if (immediateKill && restrictSet.contains(pkg) && pi.adj > 0) {
-                        RootTool.killProcess(pi.pid, pkg);
-                        continue;
-                    }
-                    String label = sLabelCache.get(pkg);
-                    Drawable.ConstantState iconState = sIconCache.get(pkg);
-                    Drawable icon = iconState != null ? iconState.newDrawable() : null;
+                    for (RootTool.ProcessInfo pi : rootProcs) {
+                        String pkg = pi.processName;
+                        if (pkg.contains(":")) {
+                            pkg = pkg.substring(0, pkg.indexOf(':'));
+                        }
+                        if (immediateKill && restrictSet.contains(pkg) && pi.adj > 0) {
+                            RootTool.killProcess(pi.pid, pkg);
+                            continue;
+                        }
+                        String label = sLabelCache.get(pkg);
+                        Drawable.ConstantState iconState = sIconCache.get(pkg);
+                        Drawable icon = iconState != null ? iconState.newDrawable() : null;
+                        boolean isSystemApp = false;
+                        int uid = 0;
+                        String versionName = "";
 
-                    if (label == null || icon == null) {
                         try {
                             ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
+                            isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+                            uid = appInfo.uid;
                             boolean isPinned = vipSet.contains(pkg);
-                            boolean isUserApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
+                            boolean isUserApp = !isSystemApp;
                             boolean isUpdatedSystem = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
                             boolean hasLauncher = false;
                             try {
@@ -945,64 +1213,77 @@ public class MainActivity extends AppCompatActivity {
                                 continue;
                             }
 
-                            label = pm.getApplicationLabel(appInfo).toString();
-                            Drawable rawIcon = pm.getApplicationIcon(appInfo);
-                            sLabelCache.put(pkg, label);
-                            if (rawIcon.getConstantState() != null) {
-                                sIconCache.put(pkg, rawIcon.getConstantState());
-                                icon = rawIcon.getConstantState().newDrawable();
-                            } else {
-                                icon = rawIcon;
+                            if (label == null || icon == null) {
+                                label = pm.getApplicationLabel(appInfo).toString();
+                                Drawable rawIcon = pm.getApplicationIcon(appInfo);
+                                sLabelCache.put(pkg, label);
+                                if (rawIcon.getConstantState() != null) {
+                                    sIconCache.put(pkg, rawIcon.getConstantState());
+                                    icon = rawIcon.getConstantState().newDrawable();
+                                } else {
+                                    icon = rawIcon;
+                                }
                             }
+
+                            try {
+                                PackageInfo pInfo = pm.getPackageInfo(pkg, 0);
+                                if (pInfo != null && pInfo.versionName != null) {
+                                    versionName = pInfo.versionName;
+                                }
+                            } catch (Throwable ignored) {}
                         } catch (Throwable ignored) {
                             continue;
                         }
-                    }
 
-                    int adj = pi.adj;
-                    if (vipSet.contains(pkg)) {
-                        adj = 200;
-                    }
-                    long memBytes = pi.memoryBytes;
-                    if (memBytes <= 0) {
-                        try {
-                            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-                            if (am != null) {
-                                android.os.Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(new int[]{pi.pid});
-                                if (mi != null && mi.length > 0 && mi[0] != null) {
-                                    long pssKb = mi[0].getTotalPss();
-                                    if (pssKb <= 0) pssKb = mi[0].getTotalPrivateDirty();
-                                    if (pssKb > 0) memBytes = pssKb * 1024L;
-                                }
-                            }
-                        } catch (Throwable ignored) {}
-                    }
-                    items.add(new ProcessItem(label, pi.processName, pi.pid, adj, icon, memBytes));
-                }
-            } else {
-                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-                if (am != null) {
-                    List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
-                    if (running != null) {
-                        int[] pids = new int[running.size()];
-                        for (int i = 0; i < running.size(); i++) {
-                            pids[i] = running.get(i).pid;
+                        if (label == null) label = pkg;
+                        int adj = pi.adj;
+                        if (vipSet.contains(pkg)) {
+                            adj = 200;
                         }
-                        android.os.Debug.MemoryInfo[] memInfos = null;
-                        try {
-                            memInfos = am.getProcessMemoryInfo(pids);
-                        } catch (Throwable ignored) {}
+                        long memBytes = pi.memoryBytes;
+                        if (memBytes <= 0) {
+                            try {
+                                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                                if (am != null) {
+                                    android.os.Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(new int[]{pi.pid});
+                                    if (mi != null && mi.length > 0 && mi[0] != null) {
+                                        long pssKb = mi[0].getTotalPss();
+                                        if (pssKb <= 0) pssKb = mi[0].getTotalPrivateDirty();
+                                        if (pssKb > 0) memBytes = pssKb * 1024L;
+                                    }
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                        items.add(new ProcessItem(label, pi.processName, pi.pid, adj, icon, memBytes, isSystemApp, uid, versionName));
+                    }
+                } else {
+                    ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                    if (am != null) {
+                        List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
+                        if (running != null) {
+                            int[] pids = new int[running.size()];
+                            for (int i = 0; i < running.size(); i++) {
+                                pids[i] = running.get(i).pid;
+                            }
+                            android.os.Debug.MemoryInfo[] memInfos = null;
+                            try {
+                                memInfos = am.getProcessMemoryInfo(pids);
+                            } catch (Throwable ignored) {}
 
-                        for (int i = 0; i < running.size(); i++) {
-                            ActivityManager.RunningAppProcessInfo info = running.get(i);
-                            if (info.uid < 10000) continue;
-                            String pkg = (info.pkgList != null && info.pkgList.length > 0) ? info.pkgList[0] : info.processName;
-                            String label = sLabelCache.get(pkg);
-                            Drawable.ConstantState iconState = sIconCache.get(pkg);
-                            Drawable icon = iconState != null ? iconState.newDrawable() : null;
-                            if (label == null || icon == null) {
+                            for (int i = 0; i < running.size(); i++) {
+                                ActivityManager.RunningAppProcessInfo info = running.get(i);
+                                if (info.uid < 10000) continue;
+                                String pkg = (info.pkgList != null && info.pkgList.length > 0) ? info.pkgList[0] : info.processName;
+                                String label = sLabelCache.get(pkg);
+                                Drawable.ConstantState iconState = sIconCache.get(pkg);
+                                Drawable icon = iconState != null ? iconState.newDrawable() : null;
+                                boolean isSystemApp = false;
+                                int uid = info.uid;
+                                String versionName = "";
+
                                 try {
                                     ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
+                                    isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
                                     label = pm.getApplicationLabel(appInfo).toString();
                                     Drawable rawIcon = pm.getApplicationIcon(appInfo);
                                     sLabelCache.put(pkg, label);
@@ -1012,36 +1293,49 @@ public class MainActivity extends AppCompatActivity {
                                     } else {
                                         icon = rawIcon;
                                     }
+
+                                    try {
+                                        PackageInfo pInfo = pm.getPackageInfo(pkg, 0);
+                                        if (pInfo != null && pInfo.versionName != null) {
+                                            versionName = pInfo.versionName;
+                                        }
+                                    } catch (Throwable ignored) {}
                                 } catch (Throwable ignored) {}
+
+                                if (label == null) label = pkg;
+                                int estimatedAdj = vipSet.contains(pkg) ? 200 : (200 + (items.size() * 5));
+                                long memBytes = 0;
+                                if (memInfos != null && i < memInfos.length && memInfos[i] != null) {
+                                    long pssKb = memInfos[i].getTotalPss();
+                                    if (pssKb <= 0) pssKb = memInfos[i].getTotalPrivateDirty();
+                                    if (pssKb > 0) memBytes = pssKb * 1024L;
+                                }
+                                items.add(new ProcessItem(label, pkg, info.pid, estimatedAdj, icon, memBytes, isSystemApp, uid, versionName));
                             }
-                            if (label == null) label = pkg;
-                            int estimatedAdj = vipSet.contains(pkg) ? 200 : (200 + (items.size() * 5));
-                            long memBytes = 0;
-                            if (memInfos != null && i < memInfos.length && memInfos[i] != null) {
-                                long pssKb = memInfos[i].getTotalPss();
-                                if (pssKb <= 0) pssKb = memInfos[i].getTotalPrivateDirty();
-                                if (pssKb > 0) memBytes = pssKb * 1024L;
-                            }
-                            items.add(new ProcessItem(label, pkg, info.pid, estimatedAdj, icon, memBytes));
                         }
                     }
                 }
+
+                items.sort((a, b) -> Integer.compare(a.adj, b.adj));
+            } catch (Throwable t) {
+                android.util.Log.e("MainActivity", "Error in refreshRunningProcesses", t);
+            } finally {
+                runOnUiThread(() -> {
+                    if (processAdapter != null) {
+                        processAdapter.setPolicyPackages(
+                            prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()),
+                            prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet())
+                        );
+                        processAdapter.updateList(items);
+                    }
+                    if (tvProcessCount != null) {
+                        tvProcessCount.setText(getString(R.string.format_process_count, items.size()));
+                    }
+                    if (swipeRefreshDashboard != null && swipeRefreshDashboard.isRefreshing()) {
+                        swipeRefreshDashboard.setRefreshing(false);
+                    }
+                });
             }
-
-            items.sort((a, b) -> Integer.compare(a.adj, b.adj));
-
-            runOnUiThread(() -> {
-                if (processAdapter != null) {
-                    processAdapter.setPolicyPackages(
-                        prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()),
-                        prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet())
-                    );
-                    processAdapter.updateList(items);
-                }
-                if (tvProcessCount != null) {
-                    tvProcessCount.setText(getString(R.string.format_process_count, items.size()));
-                }
-            });
         });
     }
 

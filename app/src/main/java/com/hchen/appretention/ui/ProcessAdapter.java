@@ -10,7 +10,6 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.button.MaterialButton;
 import com.hchen.appretention.R;
 
 import java.util.ArrayList;
@@ -20,14 +19,14 @@ import java.util.Set;
 
 public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHolder> {
 
-    public interface OnProcessKillListener {
-        void onKill(ProcessItem item, int position);
+    public interface OnProcessClickListener {
+        void onProcessClick(ProcessItem item, int position);
     }
 
     private final List<ProcessItem> processList = new ArrayList<>();
     private final Set<String> vipPackages = new HashSet<>();
     private final Set<String> restrictedPackages = new HashSet<>();
-    private OnProcessKillListener killListener;
+    private OnProcessClickListener clickListener;
 
     public ProcessAdapter(List<ProcessItem> initialList) {
         if (initialList != null) {
@@ -35,8 +34,8 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
         }
     }
 
-    public void setOnProcessKillListener(OnProcessKillListener listener) {
-        this.killListener = listener;
+    public void setOnProcessClickListener(OnProcessClickListener listener) {
+        this.clickListener = listener;
     }
 
     public void setPolicyPackages(Set<String> vips, Set<String> restricted) {
@@ -105,8 +104,9 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
             holder.ivIcon.setImageDrawable(item.icon);
         }
 
-        boolean isVip = vipPackages.contains(item.packageName);
-        boolean isRestricted = restrictedPackages.contains(item.packageName);
+        String basePkg = item.getBasePackageName();
+        boolean isVip = vipPackages.contains(basePkg);
+        boolean isRestricted = restrictedPackages.contains(basePkg);
 
         if (isVip) {
             holder.tvBadge.setText("ADJ " + item.adj + " • " + holder.itemView.getContext().getString(R.string.badge_proc_keep_alive));
@@ -130,10 +130,10 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
             holder.tvBadge.setTextColor(0xFFF59E0B);
         }
 
-        holder.btnKill.setOnClickListener(v -> {
+        holder.itemView.setOnClickListener(v -> {
             int pos = holder.getBindingAdapterPosition();
-            if (pos != RecyclerView.NO_POSITION && killListener != null && pos < processList.size()) {
-                killListener.onKill(processList.get(pos), pos);
+            if (pos != RecyclerView.NO_POSITION && clickListener != null && pos < processList.size()) {
+                clickListener.onProcessClick(processList.get(pos), pos);
             }
         });
     }
@@ -146,7 +146,6 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
     static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView ivIcon;
         TextView tvName, tvPackage, tvPid, tvBadge;
-        MaterialButton btnKill;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -155,7 +154,6 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
             tvPackage = itemView.findViewById(R.id.tvProcPackage);
             tvPid = itemView.findViewById(R.id.tvProcPid);
             tvBadge = itemView.findViewById(R.id.tvAdjBadge);
-            btnKill = itemView.findViewById(R.id.btnKillProc);
         }
     }
 }

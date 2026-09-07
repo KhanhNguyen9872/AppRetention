@@ -5,13 +5,18 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="9dp"
-    android:paddingBottom="9dp">
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
 
     <ImageView
         android:id="@+id/ivProcIcon"
-        android:layout_width="38dp"
-        android:layout_height="38dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:contentDescription="Process Icon" />
 
     <LinearLayout
@@ -28,7 +33,7 @@
             android:layout_height="wrap_content"
             android:text="App Name"
             android:textColor="@color/text_title"
-            android:textSize="13.5sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -40,7 +45,7 @@
             android:layout_marginTop="2dp"
             android:text="com.example.app"
             android:textColor="@color/text_muted"
-            android:textSize="11sp"
+            android:textSize="11.5sp"
             android:maxLines="1"
             android:ellipsize="middle" />
 
@@ -49,9 +54,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:text="PID: 1234 - 245.8 MB"
-            android:textColor="@color/text_muted"
-            android:textSize="10.5sp"
+            android:text="PID: 1234 • 245.8 MB"
+            android:textColor="@color/text_body"
+            android:textSize="11sp"
             android:maxLines="1"
             android:ellipsize="end" />
     </LinearLayout>
@@ -59,8 +64,8 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="end|center_vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
         <TextView
             android:id="@+id/tvAdjBadge"
@@ -71,38 +76,17 @@
             android:background="@drawable/bg_badge_green"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:textSize="10sp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:textSize="10.5sp"
             android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnKillProc"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="wrap_content"
-            android:layout_height="28dp"
-            android:layout_marginTop="5dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:insetLeft="0dp"
-            android:insetRight="0dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="0dp"
-            android:paddingBottom="0dp"
-            android:minHeight="0dp"
-            android:minWidth="0dp"
-            android:text="@string/btn_kill_process"
-            android:textColor="@color/accent_red"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            app:backgroundTint="#26EF4444"
-            app:strokeColor="#59EF4444"
-            app:strokeWidth="1dp"
-            app:cornerRadius="6dp"
-            app:icon="@drawable/ic_kill"
-            app:iconSize="12dp"
-            app:iconTint="@color/accent_red"
-            app:iconPadding="3dp" />
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="6dp"
+            android:src="@drawable/ic_chevron_right"
+            app:tint="@color/text_muted"
+            android:contentDescription="Details" />
     </LinearLayout>
 </LinearLayout>
