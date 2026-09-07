@@ -3,6 +3,7 @@ package com.hchen.appretention.hook.nubia;
 import static com.hchen.hooktool.core.CoreTool.findClassIfExists;
 import static com.hchen.hooktool.core.CoreTool.hook;
 
+import com.hchen.appretention.hook.system.opt.BackgroundRestrictOpt;
 import com.hchen.appretention.log.XposedLog;
 import com.hchen.collect.HookEntrance;
 import com.hchen.hooktool.HCBase;
@@ -15,6 +16,8 @@ import java.lang.reflect.Method;
 /**
  * Suppresses aggressive RedMagic (Nubia MyOS) background killers, NeoPower,
  * SmartEngine, and GameSpace background memory purgers on RedMagic 9 / NX769S and Nubia devices.
+ *
+ * Restricted apps are deliberately exempt from protection so they can be cleaned.
  *
  * @author Antigravity
  */
@@ -43,6 +46,16 @@ public class NubiaPolicy extends HCBase {
 
     public static void manualInit() {
         new NubiaPolicy().init();
+    }
+
+    private static boolean isRestrictedTarget(Object[] args) {
+        if (args == null) return false;
+        for (Object a : args) {
+            if (a instanceof String && BackgroundRestrictOpt.isRestricted((String) a)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void handleSafeReturn(Method method, IHook hook) {
@@ -75,6 +88,9 @@ public class NubiaPolicy extends HCBase {
                     hook(method, new IHook() {
                         @Override
                         public void before() {
+                            if (isRestrictedTarget(getArgs())) {
+                                return; // Allow Nubia to kill/clean restricted apps
+                            }
                             XposedLog.logI(TAG, "Intercepted Nubia clean/kill method: " + method.getName());
                             handleSafeReturn(method, this);
                         }
@@ -101,6 +117,9 @@ public class NubiaPolicy extends HCBase {
                     hook(method, new IHook() {
                         @Override
                         public void before() {
+                            if (isRestrictedTarget(getArgs())) {
+                                return; // Allow Nubia to terminate restricted apps
+                            }
                             XposedLog.logI(TAG, "Intercepted Nubia SmartEngine method: " + method.getName());
                             handleSafeReturn(method, this);
                         }
@@ -126,6 +145,9 @@ public class NubiaPolicy extends HCBase {
                     hook(method, new IHook() {
                         @Override
                         public void before() {
+                            if (isRestrictedTarget(getArgs())) {
+                                return; // Allow Nubia to kill frozen restricted apps
+                            }
                             XposedLog.logI(TAG, "Intercepted Nubia Freezer kill method: " + method.getName());
                             handleSafeReturn(method, this);
                         }

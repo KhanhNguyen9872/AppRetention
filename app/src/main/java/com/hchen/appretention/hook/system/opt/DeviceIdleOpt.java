@@ -1,7 +1,6 @@
 package com.hchen.appretention.hook.system.opt;
 
 import static com.hchen.hooktool.core.CoreTool.findClassIfExists;
-import static com.hchen.hooktool.core.CoreTool.findMethodIfExists;
 import static com.hchen.hooktool.core.CoreTool.hook;
 
 import com.hchen.appretention.log.XposedLog;
@@ -31,33 +30,45 @@ public final class DeviceIdleOpt {
             return;
         }
 
-        Method isPowerSaveWhitelistApp = findMethodIfExists(dicClass, "isPowerSaveWhitelistApp", String.class);
-        if (isPowerSaveWhitelistApp != null) {
-            hook(isPowerSaveWhitelistApp, new IHook() {
-                @Override
-                public void before() {
-                    String pkg = (String) getArg(0);
-                    if (isTargetUserApp(pkg)) {
-                        setResult(true);
+        // Hook all public and internal whitelist check methods taking package name
+        for (Method m : dicClass.getDeclaredMethods()) {
+            String name = m.getName();
+            Class<?>[] params = m.getParameterTypes();
+            if ((name.startsWith("isPowerSaveWhitelist") || name.startsWith("isExceptIdlePowerSaveWhitelist"))
+                    && params.length == 1 && params[0] == String.class) {
+                hook(m, new IHook() {
+                    @Override
+                    public void before() {
+                        String pkg = (String) getArg(0);
+                        if (isTargetUserApp(pkg)) {
+                            setResult(true);
+                        }
                     }
-                }
-            });
+                });
+            }
         }
 
-        Method isPowerSaveWhitelistExceptIdleApp = findMethodIfExists(dicClass, "isPowerSaveWhitelistExceptIdleApp", String.class);
-        if (isPowerSaveWhitelistExceptIdleApp != null) {
-            hook(isPowerSaveWhitelistExceptIdleApp, new IHook() {
-                @Override
-                public void before() {
-                    String pkg = (String) getArg(0);
-                    if (isTargetUserApp(pkg)) {
-                        setResult(true);
-                    }
+        // Hook inner LocalService (DeviceIdleInternal) if present
+        for (Class<?> inner : dicClass.getDeclaredClasses()) {
+            for (Method m : inner.getDeclaredMethods()) {
+                String name = m.getName();
+                Class<?>[] params = m.getParameterTypes();
+                if ((name.startsWith("isAppOnWhitelist") || name.startsWith("isExceptIdlePowerSaveWhitelist"))
+                        && params.length == 1 && (params[0] == int.class || params[0] == Integer.class)) {
+                    hook(m, new IHook() {
+                        @Override
+                        public void before() {
+                            int uid = (Integer) getArg(0);
+                            if (uid >= 10000) { // User installed apps
+                                setResult(true);
+                            }
+                        }
+                    });
                 }
-            });
+            }
         }
 
-        XposedLog.logI(TAG, "DeviceIdleOpt initialized successfully!");
+        XposedLog.logI(TAG, "DeviceIdleOpt initialized successfully with comprehensive whitelist hooks!");
     }
 
     private static boolean isEnabled() {

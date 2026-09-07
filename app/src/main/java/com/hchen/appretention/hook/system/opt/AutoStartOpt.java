@@ -10,8 +10,10 @@ import com.hchen.hooktool.utils.SystemPropTool;
 import java.lang.reflect.Method;
 
 /**
- * Bypasses OEM auto-start restrictions on boot (Nubia, Xiaomi, ColorOS)
- * to ensure background apps receive BOOT_COMPLETED intents.
+ * Bypasses OEM auto-start restrictions on boot and background wakeups across:
+ * - Nubia / RedMagic (NeoPower, AutoRunController, CmpManager)
+ * - Xiaomi / MIUI / HyperOS (SecurityManagerService, SmartPowerService, ProcessManagerService)
+ * - ColorOS / Realme / OnePlus (ColorAppStartupManager, OplusAppStartupManager)
  *
  * @author Antigravity
  */
@@ -25,35 +27,84 @@ public final class AutoStartOpt {
         }
 
         String[] targetClasses = new String[]{
+            // Nubia / RedMagic
             "cn.nubia.server.appmag.AutoRunController",
             "cn.nubia.server.appmag.ProcessManager",
-            "com.android.server.am.NubiaProcessManager"
+            "com.android.server.am.NubiaProcessManager",
+            "cn.nubia.server.appmag.CmpManager",
+            "cn.nubia.server.appmag.NeoPowerController",
+
+            // Xiaomi / MIUI / HyperOS
+            "com.miui.server.SecurityManagerService",
+            "com.miui.server.smartpower.SmartPowerService",
+            "com.android.server.am.ProcessManagerService",
+
+            // ColorOS / Realme / OnePlus (Oplus)
+            "com.android.server.am.ColorAppStartupManager",
+            "com.android.server.am.OplusAppStartupManager"
         };
 
+        int hookedCount = 0;
         for (String className : targetClasses) {
             Class<?> clazz = findClassIfExists(className);
             if (clazz == null) continue;
 
             for (Method m : clazz.getDeclaredMethods()) {
                 String name = m.getName().toLowerCase();
-                if (name.contains("autorun") || name.contains("autostart") || name.contains("bootallow")) {
-                    Class<?> retType = m.getReturnType();
+                Class<?> retType = m.getReturnType();
+
+                // Methods that allow / grant auto-start
+                if (name.contains("autorun") || name.contains("autostart") || name.contains("bootallow")
+                        || name.contains("allowstart") || name.contains("isallow") || name.contains("canstart")) {
                     hook(m, new IHook() {
                         @Override
                         public void before() {
+                            // Check if target is a restricted app
+                            Object[] args = getArgs();
+                            if (args != null && args.length > 0) {
+                                for (Object a : args) {
+                                    if (a instanceof String && BackgroundRestrictOpt.isRestricted((String) a)) {
+                                        return; // Don't allow restricted apps to autostart
+                                    }
+                                }
+                            }
+
                             if (retType == boolean.class || retType == Boolean.class) {
                                 setResult(true);
                             } else if (retType == int.class || retType == Integer.class) {
                                 setResult(1);
                             }
-                            XposedLog.logD(TAG, "Granted auto-start privilege via " + m.getName());
                         }
                     });
+                    hookedCount++;
+                }
+                // Methods that intercept / prevent startup (e.g. shouldPreventRestart, shouldPreventStart)
+                else if (name.contains("shouldprevent") || name.contains("preventstart") || name.contains("interceptstart")) {
+                    hook(m, new IHook() {
+                        @Override
+                        public void before() {
+                            Object[] args = getArgs();
+                            if (args != null && args.length > 0) {
+                                for (Object a : args) {
+                                    if (a instanceof String && BackgroundRestrictOpt.isRestricted((String) a)) {
+                                        return; // Allow restriction for restricted apps
+                                    }
+                                }
+                            }
+
+                            if (retType == boolean.class || retType == Boolean.class) {
+                                setResult(false);
+                            } else if (retType == int.class || retType == Integer.class) {
+                                setResult(0);
+                            }
+                        }
+                    });
+                    hookedCount++;
                 }
             }
         }
 
-        XposedLog.logI(TAG, "AutoStartOpt initialized successfully!");
+        XposedLog.logI(TAG, "AutoStartOpt initialized successfully! Hooked " + hookedCount + " OEM methods.");
     }
 
     private static boolean isEnabled() {
