@@ -1228,10 +1228,20 @@ public class MainActivity extends AppCompatActivity {
                 // Battery & Thermal
                 if (bInfo != null) {
                     if (tvBatteryDetails != null) {
-                        if (bInfo.temperatureC > 0) {
-                            tvBatteryDetails.setText(getString(R.string.format_battery_details, bInfo.levelPercent, bInfo.temperatureC));
+                        if (bInfo.totalCapacityMah > 0 && bInfo.currentCapacityMah > 0) {
+                            if (bInfo.temperatureC > 0) {
+                                tvBatteryDetails.setText(getString(R.string.format_battery_mah_details,
+                                        bInfo.currentCapacityMah, bInfo.totalCapacityMah, bInfo.levelPercent, bInfo.temperatureC));
+                            } else {
+                                tvBatteryDetails.setText(getString(R.string.format_battery_mah_notemp,
+                                        bInfo.currentCapacityMah, bInfo.totalCapacityMah, bInfo.levelPercent));
+                            }
                         } else {
-                            tvBatteryDetails.setText(getString(R.string.format_battery_details_notemp, bInfo.levelPercent));
+                            if (bInfo.temperatureC > 0) {
+                                tvBatteryDetails.setText(getString(R.string.format_battery_details, bInfo.levelPercent, bInfo.temperatureC));
+                            } else {
+                                tvBatteryDetails.setText(getString(R.string.format_battery_details_notemp, bInfo.levelPercent));
+                            }
                         }
                     }
                     if (pbBatteryUsage != null) {
@@ -1245,10 +1255,28 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                     if (tvBatterySubtext != null) {
-                        String stStr = bInfo.isCharging ? getString(R.string.battery_status_charging) : getString(R.string.battery_status_discharging);
+                        String stStr;
+                        if (bInfo.isCharging) {
+                            String base = getString(R.string.battery_status_charging);
+                            if (bInfo.currentAmperageMa > 0) {
+                                stStr = getString(R.string.format_battery_rate_charging, base, bInfo.currentAmperageMa);
+                            } else {
+                                stStr = base;
+                            }
+                        } else {
+                            String base = getString(R.string.battery_status_discharging);
+                            if (bInfo.currentAmperageMa < 0) {
+                                stStr = getString(R.string.format_battery_rate_discharging, base, Math.abs(bInfo.currentAmperageMa));
+                            } else {
+                                stStr = base;
+                            }
+                        }
+
                         String hStr = getString(R.string.battery_health_good);
                         if (bInfo.health == BatteryManager.BATTERY_HEALTH_OVERHEAT) hStr = getString(R.string.battery_health_overheat);
                         else if (bInfo.health == BatteryManager.BATTERY_HEALTH_DEAD) hStr = getString(R.string.battery_health_dead);
+                        else if (bInfo.health == BatteryManager.BATTERY_HEALTH_COLD) hStr = getString(R.string.battery_health_cold);
+
                         tvBatterySubtext.setText(getString(R.string.format_battery_subtext, stStr, hStr, bInfo.technology));
                     }
                 }

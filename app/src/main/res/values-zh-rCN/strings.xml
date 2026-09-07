@@ -120,4 +120,9 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="battery_health_overheat">过热</string>
     <string name="battery_health_cold">过冷</string>
     <string name="battery_health_dead">损坏</string>
+    <string name="format_battery_mah_details">%1$d / %2$d mAh (%3$d%%) • %4$.1f°C</string>
+    <string name="format_battery_mah_notemp">%1$d / %2$d mAh (%3$d%%)</string>
+    <string name="format_battery_rate_charging">%1$s (+%2$d mA)</string>
+    <string name="format_battery_rate_discharging">%1$s (-%2$d mA)</string>
+
 </resources>

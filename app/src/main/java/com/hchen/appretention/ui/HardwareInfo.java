@@ -203,6 +203,120 @@ public class HardwareInfo {
         public int health;
         public String technology;
         public boolean isCharging;
+        public int currentCapacityMah;
+        public int totalCapacityMah;
+        public int currentAmperageMa;
+    }
+
+    private static int sCachedTotalCapacityMah = 0;
+
+    private static int detectTotalCapacityMah(Context context) {
+        if (sCachedTotalCapacityMah > 0) return sCachedTotalCapacityMah;
+
+        // 1. Android internal PowerProfile (100% reliable standard AOSP API)
+        try {
+            Class<?> powerProfileClass = Class.forName("com.android.internal.os.PowerProfile");
+            Object powerProfile = powerProfileClass.getConstructor(Context.class).newInstance(context);
+            double cap = (Double) powerProfileClass.getMethod("getBatteryCapacity").invoke(powerProfile);
+            if (cap > 500) {
+                sCachedTotalCapacityMah = (int) Math.round(cap);
+                return sCachedTotalCapacityMah;
+            }
+        } catch (Throwable ignored) {}
+
+        // 2. Read from sysfs power_supply
+        String[] paths = new String[]{
+            "/sys/class/power_supply/battery/charge_full_design",
+            "/sys/class/power_supply/bms/charge_full_design",
+            "/sys/class/power_supply/battery/charge_full",
+            "/sys/class/power_supply/bms/charge_full"
+        };
+        for (String p : paths) {
+            long val = readLongFromFile(p);
+            if (val > 0) {
+                if (val > 100000) val /= 1000;
+                if (val >= 1000 && val <= 30000) {
+                    sCachedTotalCapacityMah = (int) val;
+                    return sCachedTotalCapacityMah;
+                }
+            }
+        }
+
+        sCachedTotalCapacityMah = 5000;
+        return sCachedTotalCapacityMah;
+    }
+
+    private static int detectCurrentCapacityMah(BatteryManager bm, int totalCapacity, int levelPercent) {
+        if (bm != null) {
+            try {
+                int chargeCounter = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER);
+                if (chargeCounter > 0) {
+                    if (chargeCounter > 100000) {
+                        return chargeCounter / 1000;
+                    } else if (chargeCounter > 500) {
+                        return chargeCounter;
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        String[] paths = new String[]{
+            "/sys/class/power_supply/battery/charge_now",
+            "/sys/class/power_supply/bms/charge_now"
+        };
+        for (String p : paths) {
+            long val = readLongFromFile(p);
+            if (val > 0) {
+                if (val > 100000) val /= 1000;
+                if (val >= 100 && val <= 30000) return (int) val;
+            }
+        }
+
+        if (totalCapacity > 0 && levelPercent >= 0) {
+            return Math.round(totalCapacity * (levelPercent / 100.0f));
+        }
+        return 0;
+    }
+
+    private static int detectCurrentAmperageMa(BatteryManager bm, boolean isCharging) {
+        if (bm != null) {
+            try {
+                int cur = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+                if (cur != Integer.MIN_VALUE && cur != 0) {
+                    if (Math.abs(cur) > 10000) cur /= 1000;
+                    if (Math.abs(cur) <= 25000) {
+                        int absVal = Math.abs(cur);
+                        return isCharging ? absVal : -absVal;
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        String[] paths = new String[]{
+            "/sys/class/power_supply/battery/current_now",
+            "/sys/class/power_supply/bms/current_now"
+        };
+        for (String p : paths) {
+            long val = readLongFromFile(p);
+            if (val != 0) {
+                if (Math.abs(val) > 10000) val /= 1000;
+                if (Math.abs(val) <= 25000) {
+                    int absVal = (int) Math.abs(val);
+                    return isCharging ? absVal : -absVal;
+                }
+            }
+        }
+        return 0;
+    }
+
+    private static long readLongFromFile(String path) {
+        File f = new File(path);
+        if (!f.exists() || !f.canRead()) return 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+            String line = reader.readLine();
+            if (line != null) return Long.parseLong(line.trim());
+        } catch (Throwable ignored) {}
+        return 0;
     }
 
     public static BatteryInfo getBatteryInfo(Context context) {
@@ -225,6 +339,12 @@ public class HardwareInfo {
                 if (info.technology == null || info.technology.trim().isEmpty()) {
                     info.technology = "Li-poly";
                 }
+
+                BatteryManager bm = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
+                info.totalCapacityMah = detectTotalCapacityMah(context);
+                info.currentCapacityMah = detectCurrentCapacityMah(bm, info.totalCapacityMah, info.levelPercent);
+                info.currentAmperageMa = detectCurrentAmperageMa(bm, info.isCharging);
+
                 return info;
             }
         } catch (Throwable ignored) {}
