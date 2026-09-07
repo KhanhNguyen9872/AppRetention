@@ -171,4 +171,16 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_copied_to_clipboard">Đã sao chép %s vào bộ nhớ tạm</string>
 
     <string name="loading_processes">Đang quét tiến trình chạy ngầm...</string>
+    <string name="label_gpu_display">Đồ Họa &amp; Màn Hình</string>
+    <string name="label_battery_power">Pin &amp; Nhiệt Độ</string>
+    <string name="format_battery_details">%1$d%% • %2$.1f°C</string>
+    <string name="format_battery_details_notemp">%d%%</string>
+    <string name="format_battery_subtext">%1$s • %2$s • %3$s</string>
+    <string name="battery_status_charging">Đang sạc</string>
+    <string name="battery_status_discharging">Đang xả</string>
+    <string name="battery_status_full">Đã đầy</string>
+    <string name="battery_health_good">Pin tốt</string>
+    <string name="battery_health_overheat">Quá nhiệt</string>
+    <string name="battery_health_cold">Quá lạnh</string>
+    <string name="battery_health_dead">Hỏng</string>
 </resources>

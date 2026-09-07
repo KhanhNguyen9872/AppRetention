@@ -1,6 +1,14 @@
 package com.hchen.appretention.ui;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
 import android.os.Build;
+import android.util.DisplayMetrics;
+import android.view.Display;
+import android.view.WindowManager;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -13,9 +21,13 @@ public class HardwareInfo {
     private static volatile String sSocName = null;
     private static volatile String sStorageType = null;
     private static volatile String sRamType = null;
+    private static volatile String sGpuModel = null;
+    private static volatile String sCpuMaxClock = null;
+    private static volatile String sDisplayInfo = null;
     private static volatile boolean sInitialized = false;
 
     private static final Map<String, String> SOC_LUT = new HashMap<>();
+    private static final Map<String, String> GPU_LUT = new HashMap<>();
 
     static {
         // Snapdragon Flagship
@@ -76,29 +88,225 @@ public class HardwareInfo {
         SOC_LUT.put("exynos2200", "Exynos 2200");
         SOC_LUT.put("exynos2100", "Exynos 2100");
         SOC_LUT.put("exynos990", "Exynos 990");
+
+        // GPU mapping
+        GPU_LUT.put("sm8750", "Adreno 830");
+        GPU_LUT.put("sun", "Adreno 830");
+        GPU_LUT.put("sm8650", "Adreno 750");
+        GPU_LUT.put("pineapple", "Adreno 750");
+        GPU_LUT.put("sm8635", "Adreno 735");
+        GPU_LUT.put("cliffs", "Adreno 735");
+        GPU_LUT.put("sm8550", "Adreno 740");
+        GPU_LUT.put("kalama", "Adreno 740");
+        GPU_LUT.put("sm8475", "Adreno 730");
+        GPU_LUT.put("cape", "Adreno 730");
+        GPU_LUT.put("sm8450", "Adreno 730");
+        GPU_LUT.put("taro", "Adreno 730");
+        GPU_LUT.put("sm8350", "Adreno 660");
+        GPU_LUT.put("lahaina", "Adreno 660");
+        GPU_LUT.put("sm8250", "Adreno 650");
+        GPU_LUT.put("kona", "Adreno 650");
+        GPU_LUT.put("sm8150", "Adreno 640");
+        GPU_LUT.put("msmnile", "Adreno 640");
+        GPU_LUT.put("sm7550", "Adreno 720");
+        GPU_LUT.put("sm7475", "Adreno 725");
+        GPU_LUT.put("sm7450", "Adreno 644");
+        GPU_LUT.put("sm7325", "Adreno 642L");
+        GPU_LUT.put("sm7250", "Adreno 620");
+        GPU_LUT.put("sm6375", "Adreno 619");
+        GPU_LUT.put("mt6991", "Immortalis-G925");
+        GPU_LUT.put("mt6989", "Immortalis-G720");
+        GPU_LUT.put("mt6985", "Immortalis-G715");
+        GPU_LUT.put("mt6983", "Mali-G710");
+        GPU_LUT.put("mt6895", "Mali-G610");
+        GPU_LUT.put("zuma", "Mali-G715");
+        GPU_LUT.put("zumapro", "Mali-G715");
     }
 
-    public static synchronized void init() {
+    public static synchronized void init(Context context) {
         if (sInitialized) return;
         detectSoc();
         detectStorage();
         detectRam();
+        detectGpu();
+        detectCpuMaxClock();
+        if (context != null) {
+            detectDisplay(context);
+        }
         sInitialized = true;
     }
 
     public static String getSocName() {
-        if (sSocName == null) init();
+        if (sSocName == null) detectSoc();
         return sSocName != null ? sSocName : "ARM Processor";
     }
 
     public static String getStorageType() {
-        if (sStorageType == null) init();
+        if (sStorageType == null) detectStorage();
         return sStorageType != null ? sStorageType : "";
     }
 
     public static String getRamType() {
-        if (sRamType == null) init();
+        if (sRamType == null) detectRam();
         return sRamType != null ? sRamType : "";
+    }
+
+    public static String getGpuModel() {
+        if (sGpuModel == null) detectGpu();
+        return sGpuModel != null ? sGpuModel : "Adreno GPU";
+    }
+
+    public static String getCpuMaxClock() {
+        if (sCpuMaxClock == null) detectCpuMaxClock();
+        return sCpuMaxClock != null ? sCpuMaxClock : "";
+    }
+
+    public static String getDisplayInfo(Context context) {
+        if (sDisplayInfo == null && context != null) detectDisplay(context);
+        return sDisplayInfo != null ? sDisplayInfo : "";
+    }
+
+    public static String getCpuTemp() {
+        try {
+            File thermalDir = new File("/sys/class/thermal");
+            if (thermalDir.exists() && thermalDir.isDirectory()) {
+                File[] zones = thermalDir.listFiles((dir, name) -> name.startsWith("thermal_zone"));
+                if (zones != null) {
+                    for (File zone : zones) {
+                        String type = readFileFirstLine(new File(zone, "type").getPath());
+                        if (type != null) {
+                            String t = type.toLowerCase();
+                            if (t.contains("cpu") || t.contains("soc") || t.contains("tsens_tz_sensor") || t.contains("mtktscpu")) {
+                                String tempStr = readFileFirstLine(new File(zone, "temp").getPath());
+                                if (tempStr != null) {
+                                    try {
+                                        float val = Float.parseFloat(tempStr.trim());
+                                        if (val > 1000) val /= 1000.0f;
+                                        if (val >= 20.0f && val <= 105.0f) {
+                                            return String.format("%.1f°C", val);
+                                        }
+                                    } catch (Throwable ignored) {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return "";
+    }
+
+    public static class BatteryInfo {
+        public int levelPercent;
+        public float temperatureC;
+        public int status;
+        public int health;
+        public String technology;
+        public boolean isCharging;
+    }
+
+    public static BatteryInfo getBatteryInfo(Context context) {
+        if (context == null) return null;
+        try {
+            Intent batteryIntent = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            if (batteryIntent != null) {
+                BatteryInfo info = new BatteryInfo();
+                int rawLevel = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                info.levelPercent = scale > 0 ? (int) ((rawLevel / (float) scale) * 100) : rawLevel;
+
+                int tempTenths = batteryIntent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0);
+                info.temperatureC = tempTenths > 0 ? tempTenths / 10.0f : 0f;
+
+                info.status = batteryIntent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN);
+                info.isCharging = info.status == BatteryManager.BATTERY_STATUS_CHARGING || info.status == BatteryManager.BATTERY_STATUS_FULL;
+                info.health = batteryIntent.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN);
+                info.technology = batteryIntent.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY);
+                if (info.technology == null || info.technology.trim().isEmpty()) {
+                    info.technology = "Li-poly";
+                }
+                return info;
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private static void detectDisplay(Context context) {
+        try {
+            WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+            if (wm != null) {
+                Display display = wm.getDefaultDisplay();
+                DisplayMetrics dm = new DisplayMetrics();
+                display.getRealMetrics(dm);
+                int w = Math.min(dm.widthPixels, dm.heightPixels);
+                int h = Math.max(dm.widthPixels, dm.heightPixels);
+                int hz = Math.round(display.getRefreshRate());
+                sDisplayInfo = w + " × " + h + " • " + hz + "Hz • " + dm.densityDpi + " DPI";
+            }
+        } catch (Throwable ignored) {
+            sDisplayInfo = "";
+        }
+    }
+
+    private static void detectCpuMaxClock() {
+        long maxKhz = 0;
+        try {
+            for (int i = 0; i < 16; i++) {
+                String p1 = "/sys/devices/system/cpu/cpu" + i + "/cpufreq/cpuinfo_max_freq";
+                String p2 = "/sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_max_freq";
+                String val = readFileFirstLine(p1);
+                if (val == null) val = readFileFirstLine(p2);
+                if (val != null) {
+                    try {
+                        long khz = Long.parseLong(val.trim());
+                        if (khz > maxKhz) maxKhz = khz;
+                    } catch (Throwable ignored) {}
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        if (maxKhz > 0) {
+            sCpuMaxClock = String.format("%.2f GHz", maxKhz / 1000000.0f);
+        } else {
+            String soc = getSocName().toLowerCase();
+            if (soc.contains("8 gen 2")) sCpuMaxClock = "3.36 GHz";
+            else if (soc.contains("8 gen 3")) sCpuMaxClock = "3.30 GHz";
+            else if (soc.contains("8 elite")) sCpuMaxClock = "4.32 GHz";
+            else sCpuMaxClock = "";
+        }
+    }
+
+    private static void detectGpu() {
+        String model = readFileFirstLine("/sys/class/kgsl/kgsl-3d0/gpu_model");
+        if (model != null && !model.trim().isEmpty()) {
+            sGpuModel = model.trim();
+            return;
+        }
+
+        String socCode = getProp("ro.soc.model");
+        if (socCode.isEmpty()) socCode = getProp("ro.board.platform");
+        String clean = socCode.toLowerCase().split("-")[0].replace(" ", "");
+        if (GPU_LUT.containsKey(clean)) {
+            sGpuModel = GPU_LUT.get(clean);
+            return;
+        }
+        for (Map.Entry<String, String> entry : GPU_LUT.entrySet()) {
+            if (clean.contains(entry.getKey())) {
+                sGpuModel = entry.getValue();
+                return;
+            }
+        }
+
+        String soc = getSocName().toLowerCase();
+        if (soc.contains("8 gen 2")) sGpuModel = "Adreno 740";
+        else if (soc.contains("8 gen 3")) sGpuModel = "Adreno 750";
+        else if (soc.contains("8 elite")) sGpuModel = "Adreno 830";
+        else if (soc.contains("8+ gen 1") || soc.contains("8 gen 1")) sGpuModel = "Adreno 730";
+        else if (soc.contains("888")) sGpuModel = "Adreno 660";
+        else if (soc.contains("9400")) sGpuModel = "Immortalis-G925";
+        else if (soc.contains("9300")) sGpuModel = "Immortalis-G720";
+        else if (soc.contains("9200")) sGpuModel = "Immortalis-G715";
+        else sGpuModel = "Adreno / Mali GPU";
     }
 
     private static void detectSoc() {

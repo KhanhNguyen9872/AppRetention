@@ -171,4 +171,16 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_copied_to_clipboard">Copied %s to clipboard</string>
 
     <string name="loading_processes">Scanning running processes...</string>
+    <string name="label_gpu_display">GPU &amp; Display</string>
+    <string name="label_battery_power">Battery &amp; Thermal</string>
+    <string name="format_battery_details">%1$d%% • %2$.1f°C</string>
+    <string name="format_battery_details_notemp">%d%%</string>
+    <string name="format_battery_subtext">%1$s • %2$s • %3$s</string>
+    <string name="battery_status_charging">Charging</string>
+    <string name="battery_status_discharging">Discharging</string>
+    <string name="battery_status_full">Full</string>
+    <string name="battery_health_good">Good</string>
+    <string name="battery_health_overheat">Overheat</string>
+    <string name="battery_health_cold">Cold</string>
+    <string name="battery_health_dead">Dead</string>
 </resources>

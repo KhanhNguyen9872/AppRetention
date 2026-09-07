@@ -12,6 +12,11 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import android.os.BatteryManager;
+import android.content.pm.ResolveInfo;
+import androidx.core.content.ContextCompat;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 import android.app.ActivityManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -113,6 +118,52 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvStorageDetails;
     private TextView tvStorageSubtext;
     private LinearProgressIndicator pbStorageUsage;
+
+    private TextView tvGpuDetails;
+    private TextView tvDisplaySubtext;
+    private TextView tvBatteryDetails;
+    private TextView tvBatterySubtext;
+    private LinearProgressIndicator pbBatteryUsage;
+
+    static class AppMeta {
+        final String label;
+        final Drawable.ConstantState iconState;
+        final boolean isSystemApp;
+        final int uid;
+        final String versionName;
+        final boolean isVisible;
+
+        AppMeta(String label, Drawable.ConstantState iconState, boolean isSystemApp, int uid, String versionName, boolean isVisible) {
+            this.label = label;
+            this.iconState = iconState;
+            this.isSystemApp = isSystemApp;
+            this.uid = uid;
+            this.versionName = versionName;
+            this.isVisible = isVisible;
+        }
+    }
+
+    private static final Map<String, AppMeta> sMetaCache = new ConcurrentHashMap<>();
+    private static volatile Set<String> sLaunchablePackages = null;
+
+    private Set<String> getLaunchablePackages(PackageManager pm) {
+        Set<String> set = sLaunchablePackages;
+        if (set == null) {
+            set = new HashSet<>();
+            try {
+                Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
+                mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+                List<ResolveInfo> list = pm.queryIntentActivities(mainIntent, 0);
+                for (ResolveInfo ri : list) {
+                    if (ri.activityInfo != null && ri.activityInfo.packageName != null) {
+                        set.add(ri.activityInfo.packageName);
+                    }
+                }
+            } catch (Throwable ignored) {}
+            sLaunchablePackages = set;
+        }
+        return set;
+    }
 
     private TextView tvProcessCount;
     private View layoutProcessesLoading;
@@ -275,6 +326,14 @@ public class MainActivity extends AppCompatActivity {
         tvStorageDetails = findViewById(R.id.tvStorageDetails);
         tvStorageSubtext = findViewById(R.id.tvStorageSubtext);
         pbStorageUsage = findViewById(R.id.pbStorageUsage);
+
+        tvGpuDetails = findViewById(R.id.tvGpuDetails);
+        tvDisplaySubtext = findViewById(R.id.tvDisplaySubtext);
+        tvBatteryDetails = findViewById(R.id.tvBatteryDetails);
+        tvBatterySubtext = findViewById(R.id.tvBatterySubtext);
+        pbBatteryUsage = findViewById(R.id.pbBatteryUsage);
+
+        sWorkerPool.execute(() -> HardwareInfo.init(getApplicationContext()));
 
         tvProcessCount = findViewById(R.id.tvProcessCount);
         layoutProcessesLoading = findViewById(R.id.layoutProcessesLoading);
@@ -949,11 +1008,12 @@ public class MainActivity extends AppCompatActivity {
 
         sWorkerPool.execute(() -> {
             PackageManager pm = getPackageManager();
-            List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            List<ApplicationInfo> installed = pm.getInstalledApplications(0);
             Set<String> currentVips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
             Set<String> currentRestricted = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
+            Set<String> launchables = getLaunchablePackages(pm);
 
-            List<AppItem> loadedList = new ArrayList<>();
+            List<AppItem> loadedList = new ArrayList<>(installed.size());
             for (ApplicationInfo ai : installed) {
                 if (getPackageName().equals(ai.packageName)) continue;
 
@@ -961,34 +1021,31 @@ public class MainActivity extends AppCompatActivity {
                 boolean isRestricted = currentRestricted.contains(ai.packageName);
                 boolean isUserApp = (ai.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
                 boolean isUpdatedSystem = (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
-                boolean hasLauncher = false;
-                try {
-                    hasLauncher = pm.getLaunchIntentForPackage(ai.packageName) != null;
-                } catch (Throwable ignored) {}
+                boolean hasLauncher = launchables.contains(ai.packageName);
 
                 if (!isPinned && !isRestricted && !isUserApp && !isUpdatedSystem && !hasLauncher) {
                     continue;
                 }
 
-                String label = sLabelCache.get(ai.packageName);
-                Drawable.ConstantState iconState = sIconCache.get(ai.packageName);
-                Drawable icon = iconState != null ? iconState.newDrawable() : null;
-                if (label == null || icon == null) {
+                AppMeta meta = sMetaCache.get(ai.packageName);
+                String label;
+                Drawable.ConstantState iconState;
+                if (meta != null) {
+                    label = meta.label;
+                    iconState = meta.iconState;
+                } else {
                     try {
                         label = pm.getApplicationLabel(ai).toString();
                         Drawable rawIcon = pm.getApplicationIcon(ai);
-                        sLabelCache.put(ai.packageName, label);
-                        if (rawIcon.getConstantState() != null) {
-                            sIconCache.put(ai.packageName, rawIcon.getConstantState());
-                            icon = rawIcon.getConstantState().newDrawable();
-                        } else {
-                            icon = rawIcon;
-                        }
+                        iconState = rawIcon.getConstantState();
+                        meta = new AppMeta(label, iconState, (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0, ai.uid, "", hasLauncher);
+                        sMetaCache.put(ai.packageName, meta);
                     } catch (Throwable ignored) {
                         continue;
                     }
                 }
 
+                Drawable icon = iconState != null ? iconState.newDrawable() : null;
                 boolean isSysApp = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
                 loadedList.add(new AppItem(label, ai.packageName, icon, isPinned, isRestricted, isSysApp));
             }
@@ -1013,17 +1070,40 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private static long parseMeminfoKb(String line) {
+        try {
+            String[] parts = line.split(":");
+            if (parts.length == 2) {
+                return Long.parseLong(parts[1].replace("kB", "").trim());
+            }
+        } catch (Throwable ignored) {}
+        return 0;
+    }
+
     private void updateHardwareStats() {
         sWorkerPool.execute(() -> {
-            RootTool.HardwareStats rootStats = RootTool.getHardwareStats();
-
-            // 1. RAM Calculation
+            // 1. Ultra-fast RAM & ZRAM calculation (direct /proc/meminfo read - 0.1ms)
             long totalRamBytes = 0;
             long availRamBytes = 0;
-            if (rootStats != null && rootStats.memTotalBytes > 0) {
-                totalRamBytes = rootStats.memTotalBytes;
-                availRamBytes = rootStats.memAvailableBytes;
-            } else {
+            long swapTotalBytes = 0;
+
+            try (BufferedReader reader = new BufferedReader(new FileReader("/proc/meminfo"))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("MemTotal:")) {
+                        totalRamBytes = parseMeminfoKb(line) * 1024L;
+                    } else if (line.startsWith("MemAvailable:")) {
+                        availRamBytes = parseMeminfoKb(line) * 1024L;
+                    } else if (line.startsWith("SwapTotal:")) {
+                        swapTotalBytes = parseMeminfoKb(line) * 1024L;
+                    }
+                    if (totalRamBytes > 0 && availRamBytes > 0 && swapTotalBytes > 0) {
+                        break;
+                    }
+                }
+            } catch (Throwable ignored) {}
+
+            if (totalRamBytes <= 0 || availRamBytes <= 0) {
                 ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
                 ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                 if (am != null) am.getMemoryInfo(mi);
@@ -1038,32 +1118,33 @@ public class MainActivity extends AppCompatActivity {
             double availRamGb = availRamBytes / (1024.0 * 1024.0 * 1024.0);
             int discount = (int) Math.round(totalRamGb) >= 15 ? 5 : ((int) Math.round(totalRamGb) >= 11 ? 4 : 3);
             String ramType = HardwareInfo.getRamType();
+            String zramText = "";
+            if (swapTotalBytes > 0) {
+                double swapTotalGb = swapTotalBytes / (1024.0 * 1024.0 * 1024.0);
+                zramText = String.format("ZRAM: %.1f GB", swapTotalGb);
+            }
 
             // 2. CPU Calculation
-            int cpuPercent = readCpuUsage(rootStats != null ? rootStats.cpuLine : null);
+            int cpuPercent = readCpuUsage(getCpuStatLine());
             int cores = Runtime.getRuntime().availableProcessors();
             String socName = HardwareInfo.getSocName();
+            String cpuMaxClock = HardwareInfo.getCpuMaxClock();
+            String cpuTemp = HardwareInfo.getCpuTemp();
 
-            // 3. Storage Calculation
+            // 3. Storage Calculation (Direct StatFs syscall - 0.05ms)
             long totalStorageBytes = 0;
             long usedStorageBytes = 0;
             long freeStorageBytes = 0;
-            if (rootStats != null && rootStats.storageTotalBytes > 0) {
-                totalStorageBytes = rootStats.storageTotalBytes;
-                usedStorageBytes = rootStats.storageUsedBytes;
-                freeStorageBytes = rootStats.storageAvailableBytes;
-            } else {
-                try {
-                    File dataDir = Environment.getDataDirectory();
-                    StatFs stat = new StatFs(dataDir.getPath());
-                    long blockSize = stat.getBlockSizeLong();
-                    long totalBlocks = stat.getBlockCountLong();
-                    long availBlocks = stat.getAvailableBlocksLong();
-                    totalStorageBytes = totalBlocks * blockSize;
-                    freeStorageBytes = availBlocks * blockSize;
-                    usedStorageBytes = Math.max(0, totalStorageBytes - freeStorageBytes);
-                } catch (Throwable ignored) {}
-            }
+            try {
+                File dataDir = Environment.getDataDirectory();
+                StatFs stat = new StatFs(dataDir.getPath());
+                long blockSize = stat.getBlockSizeLong();
+                long totalBlocks = stat.getBlockCountLong();
+                long availBlocks = stat.getAvailableBlocksLong();
+                totalStorageBytes = totalBlocks * blockSize;
+                freeStorageBytes = availBlocks * blockSize;
+                usedStorageBytes = Math.max(0, totalStorageBytes - freeStorageBytes);
+            } catch (Throwable ignored) {}
 
             int storagePercent = (int) Math.min(100, (usedStorageBytes * 100) / (totalStorageBytes > 0 ? totalStorageBytes : 1));
             double usedStorageGb = usedStorageBytes / (1024.0 * 1024.0 * 1024.0);
@@ -1071,29 +1152,53 @@ public class MainActivity extends AppCompatActivity {
             double freeStorageGb = freeStorageBytes / (1024.0 * 1024.0 * 1024.0);
             String storageType = HardwareInfo.getStorageType();
 
+            // 4. GPU & Display Info
+            String gpuModel = HardwareInfo.getGpuModel();
+            String displayInfo = HardwareInfo.getDisplayInfo(MainActivity.this);
+
+            // 5. Battery & Thermal Info
+            HardwareInfo.BatteryInfo bInfo = HardwareInfo.getBatteryInfo(MainActivity.this);
+
+            final String finalZram = zramText;
             runOnUiThread(() -> {
+                // RAM
                 if (tvRamDetails != null) tvRamDetails.setText(getString(R.string.format_ram_details, usedRamGb, totalRamGb, ramPercent));
                 if (tvRamSubtext != null) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(getString(R.string.format_ram_subtext_notype, availRamGb, discount));
                     if (ramType != null && !ramType.isEmpty()) {
-                        tvRamSubtext.setText(getString(R.string.format_ram_subtext, availRamGb, discount, ramType));
-                    } else {
-                        tvRamSubtext.setText(getString(R.string.format_ram_subtext_notype, availRamGb, discount));
+                        sb.append(" • ").append(ramType);
                     }
+                    if (!finalZram.isEmpty()) {
+                        sb.append(" • ").append(finalZram);
+                    }
+                    tvRamSubtext.setText(sb.toString());
                 }
                 if (pbRamUsage != null) pbRamUsage.setProgress(ramPercent);
 
+                // CPU
                 if (tvCpuDetails != null) {
                     tvCpuDetails.setText(cpuPercent >= 0 ? getString(R.string.format_cpu_details, cpuPercent) : "N/A");
                 }
                 if (tvCpuSubtext != null) {
+                    StringBuilder sb = new StringBuilder();
                     if (socName != null && !socName.isEmpty()) {
-                        tvCpuSubtext.setText(getString(R.string.format_cpu_subtext, socName, cores));
+                        sb.append(getString(R.string.format_cpu_subtext, socName, cores));
                     } else {
-                        tvCpuSubtext.setText(getString(R.string.format_cpu_subtext_nocores, cores + " Cores"));
+                        sb.append(getString(R.string.format_cpu_subtext_nocores, cores + " Cores"));
                     }
+                    if (!cpuMaxClock.isEmpty() || !cpuTemp.isEmpty()) {
+                        sb.append(" (");
+                        if (!cpuMaxClock.isEmpty()) sb.append(cpuMaxClock);
+                        if (!cpuMaxClock.isEmpty() && !cpuTemp.isEmpty()) sb.append(" • ");
+                        if (!cpuTemp.isEmpty()) sb.append(cpuTemp);
+                        sb.append(")");
+                    }
+                    tvCpuSubtext.setText(sb.toString());
                 }
                 if (pbCpuUsage != null) pbCpuUsage.setProgress(Math.max(0, cpuPercent));
 
+                // Storage
                 if (tvStorageDetails != null) tvStorageDetails.setText(getString(R.string.format_storage_details, usedStorageGb, totalStorageGb, storagePercent));
                 if (tvStorageSubtext != null) {
                     if (storageType != null && !storageType.isEmpty()) {
@@ -1103,6 +1208,38 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 if (pbStorageUsage != null) pbStorageUsage.setProgress(storagePercent);
+
+                // GPU & Display
+                if (tvGpuDetails != null) tvGpuDetails.setText(gpuModel);
+                if (tvDisplaySubtext != null) tvDisplaySubtext.setText(displayInfo);
+
+                // Battery & Thermal
+                if (bInfo != null) {
+                    if (tvBatteryDetails != null) {
+                        if (bInfo.temperatureC > 0) {
+                            tvBatteryDetails.setText(getString(R.string.format_battery_details, bInfo.levelPercent, bInfo.temperatureC));
+                        } else {
+                            tvBatteryDetails.setText(getString(R.string.format_battery_details_notemp, bInfo.levelPercent));
+                        }
+                    }
+                    if (pbBatteryUsage != null) {
+                        pbBatteryUsage.setProgress(bInfo.levelPercent);
+                        if (bInfo.levelPercent <= 15) {
+                            pbBatteryUsage.setIndicatorColor(ContextCompat.getColor(MainActivity.this, R.color.accent_red));
+                        } else if (bInfo.levelPercent <= 30) {
+                            pbBatteryUsage.setIndicatorColor(ContextCompat.getColor(MainActivity.this, R.color.accent_amber));
+                        } else {
+                            pbBatteryUsage.setIndicatorColor(ContextCompat.getColor(MainActivity.this, R.color.accent_green));
+                        }
+                    }
+                    if (tvBatterySubtext != null) {
+                        String stStr = bInfo.isCharging ? getString(R.string.battery_status_charging) : getString(R.string.battery_status_discharging);
+                        String hStr = getString(R.string.battery_health_good);
+                        if (bInfo.health == BatteryManager.BATTERY_HEALTH_OVERHEAT) hStr = getString(R.string.battery_health_overheat);
+                        else if (bInfo.health == BatteryManager.BATTERY_HEALTH_DEAD) hStr = getString(R.string.battery_health_dead);
+                        tvBatterySubtext.setText(getString(R.string.format_battery_subtext, stStr, hStr, bInfo.technology));
+                    }
+                }
 
                 if (tvShieldStatus != null) tvShieldStatus.setText(getString(R.string.status_killshield_active));
             });
@@ -1203,6 +1340,7 @@ public class MainActivity extends AppCompatActivity {
                     Set<String> restrictSet = prefs != null ? prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()) : Collections.emptySet();
                     boolean immediateKill = prefs != null && prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
 
+                    Set<String> launchables = getLaunchablePackages(pm);
                     for (RootTool.ProcessInfo pi : rootProcs) {
                         String pkg = pi.processName;
                         if (pkg.contains(":")) {
@@ -1212,52 +1350,46 @@ public class MainActivity extends AppCompatActivity {
                             RootTool.killProcess(pi.pid, pkg);
                             continue;
                         }
-                        String label = sLabelCache.get(pkg);
-                        Drawable.ConstantState iconState = sIconCache.get(pkg);
-                        Drawable icon = iconState != null ? iconState.newDrawable() : null;
-                        boolean isSystemApp = false;
-                        int uid = 0;
-                        String versionName = "";
 
-                        try {
-                            ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
-                            isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-                            uid = appInfo.uid;
-                            boolean isPinned = vipSet.contains(pkg);
-                            boolean isUserApp = !isSystemApp;
-                            boolean isUpdatedSystem = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
-                            boolean hasLauncher = false;
+                        AppMeta meta = sMetaCache.get(pkg);
+                        if (meta == null) {
                             try {
-                                hasLauncher = pm.getLaunchIntentForPackage(pkg) != null;
-                            } catch (Throwable ignored) {}
+                                ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
+                                boolean isSys = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+                                int u = appInfo.uid;
+                                boolean isUser = !isSys;
+                                boolean isUpdated = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+                                boolean hasLaunch = launchables.contains(pkg);
+                                boolean isVis = isUser || isUpdated || hasLaunch;
 
-                            if (!isPinned && !isUserApp && !isUpdatedSystem && !hasLauncher) {
+                                String l = pm.getApplicationLabel(appInfo).toString();
+                                Drawable rawIcon = pm.getApplicationIcon(appInfo);
+                                Drawable.ConstantState icState = rawIcon.getConstantState();
+                                String vName = "";
+                                try {
+                                    PackageInfo pInfo = pm.getPackageInfo(pkg, 0);
+                                    if (pInfo != null && pInfo.versionName != null) {
+                                        vName = pInfo.versionName;
+                                    }
+                                } catch (Throwable ignored) {}
+
+                                meta = new AppMeta(l, icState, isSys, u, vName, isVis);
+                                sMetaCache.put(pkg, meta);
+                            } catch (Throwable ignored) {
                                 continue;
                             }
+                        }
 
-                            if (label == null || icon == null) {
-                                label = pm.getApplicationLabel(appInfo).toString();
-                                Drawable rawIcon = pm.getApplicationIcon(appInfo);
-                                sLabelCache.put(pkg, label);
-                                if (rawIcon.getConstantState() != null) {
-                                    sIconCache.put(pkg, rawIcon.getConstantState());
-                                    icon = rawIcon.getConstantState().newDrawable();
-                                } else {
-                                    icon = rawIcon;
-                                }
-                            }
-
-                            try {
-                                PackageInfo pInfo = pm.getPackageInfo(pkg, 0);
-                                if (pInfo != null && pInfo.versionName != null) {
-                                    versionName = pInfo.versionName;
-                                }
-                            } catch (Throwable ignored) {}
-                        } catch (Throwable ignored) {
+                        boolean isPinned = vipSet.contains(pkg);
+                        if (!isPinned && !meta.isVisible) {
                             continue;
                         }
 
-                        if (label == null) label = pkg;
+                        String label = meta.label != null ? meta.label : pkg;
+                        Drawable icon = meta.iconState != null ? meta.iconState.newDrawable() : null;
+                        boolean isSystemApp = meta.isSystemApp;
+                        int uid = meta.uid;
+                        String versionName = meta.versionName;
                         int adj = pi.adj;
                         if (vipSet.contains(pkg)) {
                             adj = 200;

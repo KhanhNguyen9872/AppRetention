@@ -108,4 +108,16 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
     <string name="format_storage_subtext">剩余: %.1f GB</string>
     <string name="format_storage_subtext_type">剩余: %1$.1f GB • %2$s</string>
+    <string name="label_gpu_display">图形 &amp; 屏幕</string>
+    <string name="label_battery_power">电池 &amp; 温度</string>
+    <string name="format_battery_details">%1$d%% • %2$.1f°C</string>
+    <string name="format_battery_details_notemp">%d%%</string>
+    <string name="format_battery_subtext">%1$s • %2$s • %3$s</string>
+    <string name="battery_status_charging">充电中</string>
+    <string name="battery_status_discharging">放电中</string>
+    <string name="battery_status_full">已充满</string>
+    <string name="battery_health_good">良好</string>
+    <string name="battery_health_overheat">过热</string>
+    <string name="battery_health_cold">过冷</string>
+    <string name="battery_health_dead">损坏</string>
 </resources>
