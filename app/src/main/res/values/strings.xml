@@ -30,14 +30,14 @@ by: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Keep-Alive List Card -->
     <string name="title_keep_alive_list">Keep-Alive List</string>
-    <string name="desc_keep_alive_list">Apps in this list are locked at ADJ 200 with complete kill immunity, ensuring they are never terminated in the background.</string>
-    <string name="format_keep_alive_summary">Keep-Alive: %d apps (Locked at ADJ 200)</string>
+    <string name="desc_keep_alive_list">Apps in this list are locked with complete kill immunity, ensuring they are never terminated in the background.</string>
+    <string name="format_keep_alive_summary">Keep-Alive: %d apps</string>
     <string name="btn_select_keep_alive_apps">Select Keep-Alive Apps</string>
-    <string name="toast_saved_keep_alive_apps">Saved %d Keep-Alive apps (ADJ 200)</string>
+    <string name="toast_saved_keep_alive_apps">Saved %d Keep-Alive apps</string>
 
     <!-- Retention Controls Card -->
     <string name="title_retention_controls">Retention Controls</string>
-    <string name="title_tiered_adj">Tiered ADJ 200 Clamping</string>
+    <string name="title_tiered_adj">Tiered Retention Clamping</string>
     <string name="desc_tiered_adj">Bumps top background apps to Perceptible tier (ADJ 200-245) for persistent background retention.</string>
     <string name="title_killshield">KillShield Protection</string>
     <string name="desc_killshield">Blocks automated system kills from timeout, cpu spikes, and idle sweeps while allowing manual swipe.</string>
@@ -62,13 +62,13 @@ by: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Root Permission Explanation Dialog -->
     <string name="dialog_root_title">Root Permission Not Granted</string>
-    <string name="dialog_root_message">AppRetention is still actively functioning as an Xposed Module in System Framework (ADJ 200 locking and kill prevention remain fully effective).\n\nHowever, Root access is required to:\n• Accurately read 100% hardware metrics (kernel CPU load, RAM meminfo, storage df).\n• Scan running background processes &amp; OOM Score ADJ in real time.\n• Synchronize system persist properties immediately.\n\nYou can grant Root permission in Magisk, KernelSU, or APatch anytime.</string>
+    <string name="dialog_root_message">AppRetention is still actively functioning as an Xposed Module in System Framework (Keep-Alive locking and kill prevention remain fully effective).\n\nHowever, Root access is required to:\n• Accurately read 100% hardware metrics (kernel CPU load, RAM meminfo, storage df).\n• Scan running background processes &amp; OOM Score ADJ in real time.\n• Synchronize system persist properties immediately.\n\nYou can grant Root permission in Magisk, KernelSU, or APatch anytime.</string>
     <string name="btn_dialog_retry_root">Retry / Grant</string>
     <string name="btn_dialog_continue_limited">Continue (Limited Mode)</string>
 
     <!-- Keep-Alive Selection Dialog -->
     <string name="dialog_keep_alive_title">Keep-Alive List</string>
-    <string name="dialog_keep_alive_subtitle">Selected apps remain locked at ADJ 200 (Zero-Kill Immunity).</string>
+    <string name="dialog_keep_alive_subtitle">Selected apps remain locked with Zero-Kill Immunity.</string>
     <string name="hint_search_apps">Search application...</string>
     <string name="btn_cancel">Cancel</string>
     <string name="btn_save">Save</string>
@@ -84,11 +84,11 @@ by: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Keep-Alive Dedicated Page -->
     <string name="tab_keep_alive_title">Keep-Alive List</string>
-    <string name="tab_keep_alive_desc">Apps pinned at ADJ 200 with Zero-Kill Immunity.</string>
+    <string name="tab_keep_alive_desc">Apps pinned with Zero-Kill Immunity.</string>
     <string name="chip_all_apps">All Apps (%d)</string>
     <string name="chip_keep_alive_only">Keep-Alive (%d)</string>
-    <string name="badge_keep_alive_locked">ADJ 200</string>
-    <string name="toast_keep_alive_added">Pinned %s to Keep-Alive (ADJ 200)</string>
+    <string name="badge_keep_alive_locked">KEEP-ALIVE</string>
+    <string name="toast_keep_alive_added">Pinned %s to Keep-Alive</string>
     <string name="toast_keep_alive_removed">Unpinned %s from Keep-Alive</string>
 
     <!-- Controls & Logs Pages -->
@@ -127,7 +127,7 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="chip_filter_user">User Apps</string>
     <string name="chip_filter_system">System</string>
     <string name="dialog_quick_switch_title">Switch to Keep-Alive?</string>
-    <string name="dialog_quick_switch_message">Application \"%s\" is currently restricted from background. Would you like to unrestrict it and pin it to Keep-Alive (ADJ 200) now?</string>
+    <string name="dialog_quick_switch_message">Application \"%s\" is currently restricted from background. Would you like to unrestrict it and pin it to Keep-Alive now?</string>
     <string name="btn_quick_switch_confirm">Unrestrict &amp; Pin</string>
     <string name="badge_proc_keep_alive">KEEP-ALIVE</string>
     <string name="badge_proc_restricted">RESTRICTED</string>
@@ -144,8 +144,8 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="sheet_title_process_details">Process Details</string>
     <string name="sheet_metrics_title">DIAGNOSTICS &amp; METRICS</string>
     <string name="sheet_policy_title">RETENTION &amp; RESTRICTION POLICIES</string>
-    <string name="sheet_sw_keep_alive_title">Keep-Alive (ADJ 200)</string>
-    <string name="sheet_sw_keep_alive_desc">Lock at ADJ 200 to prevent system from killing app on low memory.</string>
+    <string name="sheet_sw_keep_alive_title">Keep-Alive</string>
+    <string name="sheet_sw_keep_alive_desc">Lock app to prevent system from killing on low memory.</string>
     <string name="sheet_sw_restrict_title">Restrict Background</string>
     <string name="sheet_sw_restrict_desc">Prevent background execution, terminating on app exit or memory pressure.</string>
     <string name="sheet_btn_kill">Kill Process</string>
@@ -158,7 +158,7 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="sheet_label_uid">UID</string>
     <string name="sheet_label_ram">RAM</string>
     <string name="sheet_label_adj">OOM ADJ</string>
-    <string name="sheet_status_vip">Keep-Alive Protection (ADJ 200)</string>
+    <string name="sheet_status_vip">Keep-Alive Protection</string>
     <string name="sheet_status_restricted">Restricted (Clean on exit / low RAM)</string>
     <string name="sheet_status_foreground">Foreground / Active on Screen</string>
     <string name="sheet_status_perceptible">Perceptible / Media / Notification</string>

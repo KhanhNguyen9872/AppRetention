@@ -14,11 +14,11 @@ by: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Keep-Alive Dedicated Page -->
     <string name="tab_keep_alive_title">后台保活列表</string>
-    <string name="tab_keep_alive_desc">锁定在 ADJ 200 级别的应用，享有防杀免疫。</string>
+    <string name="tab_keep_alive_desc">锁定的常驻后台应用，享有防杀免疫。</string>
     <string name="chip_all_apps">全部 (%d)</string>
     <string name="chip_keep_alive_only">已保活 (%d)</string>
-    <string name="badge_keep_alive_locked">ADJ 200</string>
-    <string name="toast_keep_alive_added">已将 %s 加入保活 (ADJ 200)</string>
+    <string name="badge_keep_alive_locked">常驻后台</string>
+    <string name="toast_keep_alive_added">已将 %s 加入常驻后台</string>
     <string name="toast_keep_alive_removed">已将 %s 移出保活</string>
 
     <!-- Controls & Logs Pages -->
@@ -57,7 +57,7 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="chip_filter_user">用户应用</string>
     <string name="chip_filter_system">系统应用</string>
     <string name="dialog_quick_switch_title">切换为保活应用？</string>
-    <string name="dialog_quick_switch_message">应用 \"%s\" 当前已被限制后台运行。是否立即解除限制并将其加入保活名单 (ADJ 200)？</string>
+    <string name="dialog_quick_switch_message">应用 \"%s\" 当前已被限制后台运行。是否立即解除限制并将其加入常驻后台名单？</string>
     <string name="btn_quick_switch_confirm">解除限制并保活</string>
     <string name="badge_proc_keep_alive">保活</string>
     <string name="badge_proc_restricted">已限制</string>
@@ -74,8 +74,8 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="sheet_title_process_details">进程详情</string>
     <string name="sheet_metrics_title">运行诊断与指标</string>
     <string name="sheet_policy_title">后台保活与限制策略</string>
-    <string name="sheet_sw_keep_alive_title">常驻后台 (ADJ 200)</string>
-    <string name="sheet_sw_keep_alive_desc">锁定在 ADJ 200，防止内存不足时被系统杀死。</string>
+    <string name="sheet_sw_keep_alive_title">常驻后台</string>
+    <string name="sheet_sw_keep_alive_desc">锁定常驻后台，防止内存不足时被系统杀死。</string>
     <string name="sheet_sw_restrict_title">限制后台运行</string>
     <string name="sheet_sw_restrict_desc">禁止后台驻留，退出应用后强制清理或终止进程。</string>
     <string name="sheet_btn_kill">结束进程</string>
@@ -88,7 +88,7 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="sheet_label_uid">UID</string>
     <string name="sheet_label_ram">内存</string>
     <string name="sheet_label_adj">OOM ADJ</string>
-    <string name="sheet_status_vip">保活锁定保护 (ADJ 200)</string>
+    <string name="sheet_status_vip">保活锁定保护</string>
     <string name="sheet_status_restricted">后台受限 (退出/内存紧张时清理)</string>
     <string name="sheet_status_foreground">前台活跃进程 / 正在屏幕显示</string>
     <string name="sheet_status_perceptible">可感知进程 / 正在播放音频或通知</string>

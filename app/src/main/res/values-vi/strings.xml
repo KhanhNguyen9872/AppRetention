@@ -30,14 +30,14 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Keep-Alive List Card -->
     <string name="title_keep_alive_list">Danh Sách Giữ Chạy Nền (Keep-Alive)</string>
-    <string name="desc_keep_alive_list">Các ứng dụng trong danh sách này được khóa cố định tại ADJ 200 và miễn nhiễm hoàn toàn với cơ chế diệt ngầm của hệ thống.</string>
-    <string name="format_keep_alive_summary">Giữ chạy nền: %d ứng dụng (Khóa tại ADJ 200)</string>
+    <string name="desc_keep_alive_list">Các ứng dụng trong danh sách này được khóa cố định và miễn nhiễm hoàn toàn với cơ chế diệt ngầm của hệ thống.</string>
+    <string name="format_keep_alive_summary">Giữ chạy nền: %d ứng dụng</string>
     <string name="btn_select_keep_alive_apps">Chọn Ứng Dụng Giữ Chạy Nền</string>
-    <string name="toast_saved_keep_alive_apps">Đã lưu %d ứng dụng Giữ chạy nền (ADJ 200)</string>
+    <string name="toast_saved_keep_alive_apps">Đã lưu %d ứng dụng Giữ chạy nền</string>
 
     <!-- Retention Controls Card -->
     <string name="title_retention_controls">Cấu Hình Giữ Đa Nhiệm</string>
-    <string name="title_tiered_adj">Phân Tầng Kẹp ADJ 200</string>
+    <string name="title_tiered_adj">Phân Tầng Kẹp Giữ Nền</string>
     <string name="desc_tiered_adj">Đẩy các app ngầm gần nhất lên phân tầng Perceptible (ADJ 200-245) để giữ trạng thái sống liên tục.</string>
     <string name="title_killshield">Khiên Bảo Vệ KillShield</string>
     <string name="desc_killshield">Chặn hệ thống tự động diệt app do quá giờ, tăng tải CPU hoặc dọn dẹp bộ nhớ đệm, nhưng vẫn cho phép vuốt tắt thủ công.</string>
@@ -62,13 +62,13 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Root Permission Explanation Dialog -->
     <string name="dialog_root_title">Quyền Root Chưa Được Cấp</string>
-    <string name="dialog_root_message">AppRetention vẫn đang hoạt động ổn định ở tầng System Framework (các cơ chế khóa ADJ 200 và chống kill ngầm của module Xposed vẫn có hiệu lực).\n\nTuy nhiên, quyền Root là cần thiết để:\n• Đọc chính xác 100% tài nguyên phần cứng (CPU kernel load, RAM meminfo, Storage df).\n• Quét danh sách tiến trình chạy ngầm &amp; OOM Score ADJ theo thời gian thực.\n• Đồng bộ các thuộc tính hệ thống (persist properties) ngay lập tức.\n\nBạn có thể cấp quyền trong Magisk, KernelSU hoặc APatch bất cứ lúc nào.</string>
+    <string name="dialog_root_message">AppRetention vẫn đang hoạt động ổn định ở tầng System Framework (các cơ chế khóa giữ nền và chống kill ngầm của module Xposed vẫn có hiệu lực).\n\nTuy nhiên, quyền Root là cần thiết để:\n• Đọc chính xác 100% tài nguyên phần cứng (CPU kernel load, RAM meminfo, Storage df).\n• Quét danh sách tiến trình chạy ngầm &amp; OOM Score ADJ theo thời gian thực.\n• Đồng bộ các thuộc tính hệ thống (persist properties) ngay lập tức.\n\nBạn có thể cấp quyền trong Magisk, KernelSU hoặc APatch bất cứ lúc nào.</string>
     <string name="btn_dialog_retry_root">Thử lại / Cấp quyền</string>
     <string name="btn_dialog_continue_limited">Tiếp tục (Chế độ hạn chế)</string>
 
     <!-- Keep-Alive Selection Dialog -->
     <string name="dialog_keep_alive_title">Danh Sách Giữ Chạy Nền</string>
-    <string name="dialog_keep_alive_subtitle">Các ứng dụng được chọn sẽ được khóa tại ADJ 200 (Miễn nhiễm diệt ngầm).</string>
+    <string name="dialog_keep_alive_subtitle">Các ứng dụng được chọn sẽ được khóa giữ nền (Miễn nhiễm diệt ngầm).</string>
     <string name="hint_search_apps">Tìm kiếm ứng dụng...</string>
     <string name="btn_cancel">Hủy</string>
     <string name="btn_save">Lưu</string>
@@ -84,11 +84,11 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Keep-Alive Dedicated Page -->
     <string name="tab_keep_alive_title">Danh sách Keep-Alive</string>
-    <string name="tab_keep_alive_desc">Các ứng dụng được ghim ADJ 200 miễn nhiễm bị hệ thống tắt.</string>
+    <string name="tab_keep_alive_desc">Các ứng dụng được ghim giữ nền miễn nhiễm bị hệ thống tắt.</string>
     <string name="chip_all_apps">Tất cả (%d)</string>
     <string name="chip_keep_alive_only">Đang giữ (%d)</string>
-    <string name="badge_keep_alive_locked">ADJ 200</string>
-    <string name="toast_keep_alive_added">Đã ghim %s vào Keep-Alive (ADJ 200)</string>
+    <string name="badge_keep_alive_locked">GIỮ CHẠY NỀN</string>
+    <string name="toast_keep_alive_added">Đã ghim %s vào Keep-Alive</string>
     <string name="toast_keep_alive_removed">Đã bỏ %s khỏi Keep-Alive</string>
 
     <!-- Controls & Logs Pages -->
@@ -127,7 +127,7 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="chip_filter_user">Người dùng</string>
     <string name="chip_filter_system">Hệ thống</string>
     <string name="dialog_quick_switch_title">Chuyển sang Giữ chạy ngầm?</string>
-    <string name="dialog_quick_switch_message">Ứng dụng \"%s\" hiện đang nằm trong danh sách Cấm chạy ngầm. Bạn có muốn bỏ cấm và ghim giữ nền (ADJ 200) cho ứng dụng này ngay không?</string>
+    <string name="dialog_quick_switch_message">Ứng dụng \"%s\" hiện đang nằm trong danh sách Cấm chạy ngầm. Bạn có muốn bỏ cấm và ghim giữ nền cho ứng dụng này ngay không?</string>
     <string name="btn_quick_switch_confirm">Bỏ cấm &amp; Ghim</string>
     <string name="badge_proc_keep_alive">GIỮ NỀN</string>
     <string name="badge_proc_restricted">CẤM NỀN</string>
@@ -144,8 +144,8 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="sheet_title_process_details">Chi tiết tiến trình</string>
     <string name="sheet_metrics_title">THÔNG SỐ &amp; CHUẨN ĐOÁN</string>
     <string name="sheet_policy_title">CHÍNH SÁCH BẢO LƯU NỀN</string>
-    <string name="sheet_sw_keep_alive_title">Giữ chạy ngầm (ADJ 200)</string>
-    <string name="sheet_sw_keep_alive_desc">Khóa tiến trình ở ADJ 200, ngăn hệ thống dọn dẹp khi thiếu RAM.</string>
+    <string name="sheet_sw_keep_alive_title">Giữ chạy ngầm</string>
+    <string name="sheet_sw_keep_alive_desc">Khóa tiến trình, ngăn hệ thống dọn dẹp khi thiếu RAM.</string>
     <string name="sheet_sw_restrict_title">Hạn chế chạy ngầm</string>
     <string name="sheet_sw_restrict_desc">Cấm chạy nền, tự động dọn dẹp hoặc diệt tiến trình khi rời ứng dụng.</string>
     <string name="sheet_btn_kill">Diệt tiến trình</string>
@@ -158,7 +158,7 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="sheet_label_uid">UID</string>
     <string name="sheet_label_ram">RAM</string>
     <string name="sheet_label_adj">OOM ADJ</string>
-    <string name="sheet_status_vip">Bảo vệ giữ chạy ngầm (ADJ 200)</string>
+    <string name="sheet_status_vip">Bảo vệ giữ chạy ngầm</string>
     <string name="sheet_status_restricted">Bị hạn chế (Dọn dẹp khi thoát / thiếu RAM)</string>
     <string name="sheet_status_foreground">Tiến trình tiền cảnh / Đang hiển thị</string>
     <string name="sheet_status_perceptible">Tiến trình có thể nhận biết / Âm thanh / Thông báo</string>
