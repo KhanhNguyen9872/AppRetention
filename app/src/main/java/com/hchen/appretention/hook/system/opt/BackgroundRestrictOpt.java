@@ -46,6 +46,12 @@ public final class BackgroundRestrictOpt {
     public static final String RESTRICT_FILE_PATH_DE = "/data/user_de/0/com.hchen.appretention/files/restricted_packages.txt";
     public static final String RESTRICT_FILE_PATH_CE = "/data/user/0/com.hchen.appretention/files/restricted_packages.txt";
     public static final String IMMEDIATE_KILL_FILE_PATH = "/data/user_de/0/com.hchen.appretention/files/immediate_kill.txt";
+    public static final String PACKAGE_APPRETENTION = "com.hchen.appretention";
+
+    public static boolean shouldTerminateOnTaskRemoved(String packageName) {
+        if (packageName == null || packageName.isEmpty()) return false;
+        return isRestricted(packageName) || PACKAGE_APPRETENTION.equals(packageName);
+    }
 
     private static long lastCheckTime = 0;
     private static HashSet<String> cachedRestrictedSet = new HashSet<>();
@@ -137,8 +143,8 @@ public final class BackgroundRestrictOpt {
                         if (taskObj == null) return;
 
                         String pkg = extractPackageNameFromTask(taskObj);
-                        if (pkg != null && isRestricted(pkg)) {
-                            XposedLog.logI(TAG, "Restricted task cleared from RecentTasks.remove: " + pkg);
+                        if (shouldTerminateOnTaskRemoved(pkg)) {
+                            XposedLog.logI(TAG, "Task cleared from RecentTasks.remove: " + pkg);
                             terminatePackage(pkg, 0, "recents_cleared");
                         }
                     }
@@ -159,8 +165,8 @@ public final class BackgroundRestrictOpt {
                             public void before() {
                                 Object taskObj = getThisObject();
                                 String pkg = extractPackageNameFromTask(taskObj);
-                                if (pkg != null && isRestricted(pkg)) {
-                                    XposedLog.logI(TAG, "Restricted task removed via Task." + m.getName() + ": " + pkg);
+                                if (shouldTerminateOnTaskRemoved(pkg)) {
+                                    XposedLog.logI(TAG, "Task removed via Task." + m.getName() + ": " + pkg);
                                     terminatePackage(pkg, 0, "task_removed");
                                 }
                             }
@@ -202,8 +208,8 @@ public final class BackgroundRestrictOpt {
                                             }
                                             if (taskObj != null) {
                                                 String pkg = extractPackageNameFromTask(taskObj);
-                                                if (pkg != null && isRestricted(pkg)) {
-                                                    XposedLog.logI(TAG, "Restricted task removed via ATMS.removeTask: " + pkg);
+                                                if (shouldTerminateOnTaskRemoved(pkg)) {
+                                                    XposedLog.logI(TAG, "Task removed via ATMS.removeTask: " + pkg);
                                                     terminatePackage(pkg, 0, "atms_remove_task");
                                                 }
                                             }

@@ -209,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnCopyLog;
     private MaterialButton btnClearLog;
 
-    // 3-second recurring auto-refresh handler for Dashboard and active watchdog
+    // 3-second recurring auto-refresh handler for Dashboard (active only when Dashboard is visible)
     private final Handler mTimerHandler = new Handler(Looper.getMainLooper());
     private final Runnable mPeriodicRefreshRunnable = new Runnable() {
         @Override
@@ -217,8 +217,6 @@ public class MainActivity extends AppCompatActivity {
             if (pageDashboard != null && pageDashboard.getVisibility() == View.VISIBLE) {
                 updateHardwareStats();
                 refreshRunningProcesses();
-            } else if (prefs != null && prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false)) {
-                checkAndEnforceRestrictedWatchdog();
             }
             mTimerHandler.postDelayed(this, 3000);
         }
@@ -248,7 +246,9 @@ public class MainActivity extends AppCompatActivity {
         Set<String> restricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
         syncPolicyFiles(vips, restricted);
         syncImmediateKillFile(prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false));
-        startBackgroundWatchdog();
+        try {
+            startService(new Intent(this, CleanExitService.class));
+        } catch (Throwable ignored) {}
     }
 
     @Override
@@ -263,6 +263,25 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         mTimerHandler.removeCallbacks(mPeriodicRefreshRunnable);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mTimerHandler.removeCallbacks(mPeriodicRefreshRunnable);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mTimerHandler.removeCallbacksAndMessages(null);
+        if (isFinishing()) {
+            try {
+                stopService(new Intent(this, CleanExitService.class));
+            } catch (Throwable ignored) {}
+            android.os.Process.killProcess(android.os.Process.myPid());
+            System.exit(0);
+        }
     }
 
     private void initViews() {
@@ -580,7 +599,6 @@ public class MainActivity extends AppCompatActivity {
             if (KEY_RESTRICT_IMMEDIATE.equals(key)) {
                 syncImmediateKillFile(isChecked);
                 if (isChecked) {
-                    startBackgroundWatchdog();
                     refreshRunningProcesses();
                 }
             }
@@ -1724,87 +1742,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, R.string.toast_log_cleared, Toast.LENGTH_SHORT).show();
             });
         });
-    }
-
-    private static volatile boolean sWatchdogActive = false;
-    private static final Pattern FG_PKG_PATTERN = Pattern.compile("u\\d+\\s+([a-zA-Z0-9._]+)/");
-    private static final Pattern RECENTS_PKG_PATTERN = Pattern.compile("realActivity=([a-zA-Z0-9._]+)/");
-
-    private synchronized void startBackgroundWatchdog() {
-        if (sWatchdogActive) return;
-        sWatchdogActive = true;
-        sWorkerPool.execute(() -> {
-            while (sWatchdogActive) {
-                try {
-                    Thread.sleep(1200);
-                    if (prefs == null || !RootTool.isRootAvailable()) continue;
-
-                    Set<String> restrictSet = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
-                    if (restrictSet == null || restrictSet.isEmpty()) continue;
-
-                    boolean immediateKill = prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
-                    String fgPkg = getForegroundPackageViaRoot();
-                    Set<String> recentsPkgs = immediateKill ? Collections.emptySet() : getRecentsPackagesViaRoot();
-
-                    for (String pkg : restrictSet) {
-                        if (pkg == null || pkg.isEmpty() || pkg.equals(fgPkg)) {
-                            // Currently active in foreground, don't terminate
-                            continue;
-                        }
-
-                        // If immediate kill is disabled, allow the app to run as long as it remains in Recents
-                        if (!immediateKill && recentsPkgs.contains(pkg)) {
-                            continue;
-                        }
-
-                        // Restricted app is either out of screen (immediate kill) OR cleared from recents.
-                        // Terminate any running background processes.
-                        String pidStr = RootTool.runCommand("pidof " + pkg + " 2>/dev/null");
-                        if (pidStr == null || pidStr.trim().isEmpty()) {
-                            pidStr = RootTool.runCommand("pgrep -f " + pkg + " 2>/dev/null");
-                        }
-
-                        if (pidStr != null && !pidStr.trim().isEmpty()) {
-                            RootTool.runCommand("am force-stop " + pkg + " 2>/dev/null; pkill -9 -f " + pkg + " 2>/dev/null");
-                        }
-                    }
-                } catch (Throwable ignored) {}
-            }
-        });
-    }
-
-    private String getForegroundPackageViaRoot() {
-        try {
-            String out = RootTool.runCommand("dumpsys activity activities 2>/dev/null | grep -m 1 'topResumedActivity='");
-            if (out != null) {
-                Matcher m = FG_PKG_PATTERN.matcher(out);
-                if (m.find()) return m.group(1);
-            }
-            out = RootTool.runCommand("dumpsys window 2>/dev/null | grep -m 1 -E 'mCurrentFocus|mFocusedApp'");
-            if (out != null) {
-                Matcher m = FG_PKG_PATTERN.matcher(out);
-                if (m.find()) return m.group(1);
-            }
-        } catch (Throwable ignored) {}
-        return null;
-    }
-
-    private Set<String> getRecentsPackagesViaRoot() {
-        Set<String> set = new HashSet<>();
-        try {
-            String out = RootTool.runCommand("dumpsys activity recents 2>/dev/null | grep 'realActivity='");
-            if (out != null) {
-                Matcher m = RECENTS_PKG_PATTERN.matcher(out);
-                while (m.find()) {
-                    set.add(m.group(1));
-                }
-            }
-        } catch (Throwable ignored) {}
-        return set;
-    }
-
-    private void checkAndEnforceRestrictedWatchdog() {
-        startBackgroundWatchdog();
     }
 
     private void syncPolicyFiles(Set<String> vipSet, Set<String> restrictSet) {

@@ -25,6 +25,11 @@
             android:name="xposedminversion"
             android:value="101" />
     
+        <service
+            android:name=".ui.CleanExitService"
+            android:exported="false"
+            android:stopWithTask="false" />
+
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
