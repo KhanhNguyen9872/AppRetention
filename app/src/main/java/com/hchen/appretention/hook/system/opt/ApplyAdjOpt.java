@@ -174,22 +174,20 @@ public class ApplyAdjOpt {
                     if (isRestricted) {
                         if (BackgroundRestrictOpt.isImmediateKillEnabled()) {
                             Object mState = pr.mState != null ? pr.mState : getField(app, SystemField.mState);
-                            Integer importance = null;
-                            try {
-                                importance = (Integer) callStaticMethod(
-                                    ActivityManager$RunningAppProcessInfo,
-                                    procStateToImportance,
-                                    callMethod(mState, getCurProcState)
-                                );
-                            } catch (Throwable ignored) {}
-
                             Integer curProcState = null;
                             try {
                                 curProcState = (Integer) callMethod(mState, getCurProcState);
                             } catch (Throwable ignored) {}
 
-                            boolean notForeground = (importance != null && importance > ImportanceInfo.IMPORTANCE_VISIBLE)
-                                    || (curProcState != null && curProcState > 2);
+                            Integer curAdj = null;
+                            try {
+                                Object curAdjObj = callMethod(mState, "getCurAdj");
+                                if (curAdjObj instanceof Integer) curAdj = (Integer) curAdjObj;
+                            } catch (Throwable ignored) {}
+
+                            // If curProcState is not TOP (2) or curAdj > 0: it is definitely leaving foreground/in background!
+                            boolean notForeground = (curProcState != null && curProcState != 2)
+                                    || (curAdj != null && curAdj > 0);
 
                             if (notForeground) {
                                 int pid = 0;

@@ -1,5 +1,8 @@
 package com.hchen.appretention.ui;
 
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+
 import android.content.ContentValues;
 import android.provider.MediaStore;
 import android.widget.ScrollView;
@@ -190,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
         Set<String> restricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
         syncPolicyFiles(vips, restricted);
         syncImmediateKillFile(prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false));
+        startBackgroundWatchdog();
     }
 
     @Override
@@ -524,6 +528,7 @@ public class MainActivity extends AppCompatActivity {
             if (KEY_RESTRICT_IMMEDIATE.equals(key)) {
                 syncImmediateKillFile(isChecked);
                 if (isChecked) {
+                    startBackgroundWatchdog();
                     refreshRunningProcesses();
                 }
             }
@@ -1254,22 +1259,63 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void checkAndEnforceRestrictedWatchdog() {
+    private static volatile boolean sWatchdogActive = false;
+    private static final Pattern FG_PKG_PATTERN = Pattern.compile("u\\d+\\s+([a-zA-Z0-9._]+)/");
+
+    private synchronized void startBackgroundWatchdog() {
+        if (sWatchdogActive) return;
+        sWatchdogActive = true;
         sWorkerPool.execute(() -> {
-            if (prefs == null || !RootTool.isRootAvailable()) return;
-            Set<String> restrictSet = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
-            if (restrictSet.isEmpty()) return;
-            List<RootTool.ProcessInfo> rootProcs = RootTool.getRunningProcesses();
-            for (RootTool.ProcessInfo pi : rootProcs) {
-                String pkg = pi.processName;
-                if (pkg.contains(":")) {
-                    pkg = pkg.substring(0, pkg.indexOf(':'));
-                }
-                if (restrictSet.contains(pkg) && pi.adj > 0) {
-                    RootTool.killProcess(pi.pid, pkg);
-                }
+            while (sWatchdogActive) {
+                try {
+                    Thread.sleep(1000);
+                    if (prefs == null || !RootTool.isRootAvailable()) continue;
+                    boolean immediateKill = prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
+                    if (!immediateKill) continue;
+
+                    Set<String> restrictSet = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
+                    if (restrictSet == null || restrictSet.isEmpty()) continue;
+
+                    String fgPkg = getForegroundPackageViaRoot();
+                    for (String pkg : restrictSet) {
+                        if (pkg == null || pkg.isEmpty() || pkg.equals(fgPkg)) {
+                            // Currently active in foreground, don't terminate
+                            continue;
+                        }
+
+                        // Restricted app is not in foreground; check if it has running processes
+                        String pidStr = RootTool.runCommand("pidof " + pkg + " 2>/dev/null");
+                        if (pidStr == null || pidStr.trim().isEmpty()) {
+                            pidStr = RootTool.runCommand("pgrep -f " + pkg + " 2>/dev/null");
+                        }
+
+                        if (pidStr != null && !pidStr.trim().isEmpty()) {
+                            RootTool.runCommand("am force-stop " + pkg + " 2>/dev/null; pkill -9 -f " + pkg + " 2>/dev/null");
+                        }
+                    }
+                } catch (Throwable ignored) {}
             }
         });
+    }
+
+    private String getForegroundPackageViaRoot() {
+        try {
+            String out = RootTool.runCommand("dumpsys activity activities 2>/dev/null | grep -m 1 'topResumedActivity='");
+            if (out != null) {
+                Matcher m = FG_PKG_PATTERN.matcher(out);
+                if (m.find()) return m.group(1);
+            }
+            out = RootTool.runCommand("dumpsys window 2>/dev/null | grep -m 1 -E 'mCurrentFocus|mFocusedApp'");
+            if (out != null) {
+                Matcher m = FG_PKG_PATTERN.matcher(out);
+                if (m.find()) return m.group(1);
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private void checkAndEnforceRestrictedWatchdog() {
+        startBackgroundWatchdog();
     }
 
     private void syncPolicyFiles(Set<String> vipSet, Set<String> restrictSet) {

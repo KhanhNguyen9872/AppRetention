@@ -1,5 +1,6 @@
 package com.hchen.appretention.hook.system.opt;
 
+import static com.hchen.appretention.data.path.SystemClass.ActivityManagerService;
 import static com.hchen.appretention.data.path.SystemClass.ProcessList;
 import static com.hchen.appretention.data.path.SystemClass.RecentTasks;
 import static com.hchen.appretention.data.path.SystemClass.Task;
@@ -10,6 +11,7 @@ import static com.hchen.hooktool.core.CoreTool.hook;
 import static com.hchen.hooktool.core.CoreTool.hookMethod;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.os.Binder;
@@ -30,7 +32,7 @@ import java.util.HashSet;
  * 1. Default restricted behavior: Allowed in recents, but terminated and prevented from background
  *    running when cleared/swiped from Recents.
  * 2. Immediate Kill behavior (when persist.hchen.restrict.immediate_kill is enabled):
- *    Terminates the restricted app immediately when leaving foreground.
+ *    Terminates the restricted app immediately when leaving foreground (Home pressed, app switched, etc.).
  * 3. Wakeup Suppression: Intercepts and suppresses background broadcast auto-restarts for restricted apps.
  *
  * @author Antigravity & HChenX
@@ -51,12 +53,15 @@ public final class BackgroundRestrictOpt {
     public static void init() {
         hookRecentTasksRemove();
         hookBroadcastWakeupSuppression();
-        XposedLog.logI(TAG, "BackgroundRestrictOpt initialized successfully!");
+        hookForegroundActivitiesChanged();
+        hookActivityRecordLifecycle();
+        hookActivityTaskManagerServiceActivityStopped();
+        XposedLog.logI(TAG, "BackgroundRestrictOpt initialized successfully with all lifecycle hooks!");
     }
 
     public static synchronized HashSet<String> getRestrictedPackages() {
         long now = System.currentTimeMillis();
-        if (now - lastCheckTime > 2000) {
+        if (now - lastCheckTime > 1500) {
             lastCheckTime = now;
             HashSet<String> set = new HashSet<>();
 
@@ -118,8 +123,10 @@ public final class BackgroundRestrictOpt {
         return false;
     }
 
+    /**
+     * Hook Point 1: Swiping or removing tasks from Recents
+     */
     private static void hookRecentTasksRemove() {
-        // Hook point 1: RecentTasks.remove(Task)
         Class<?> recentTasksClass = findClassIfExists(RecentTasks);
         if (recentTasksClass != null) {
             try {
@@ -142,7 +149,6 @@ public final class BackgroundRestrictOpt {
             }
         }
 
-        // Hook point 2: Task.removeImmediately() and Task.removeIfPossible()
         Class<?> taskClass = findClassIfExists(Task);
         if (taskClass != null) {
             try {
@@ -167,7 +173,6 @@ public final class BackgroundRestrictOpt {
             }
         }
 
-        // Hook point 3: ActivityTaskManagerService.removeTask(int taskId)
         Class<?> atmsClass = findClassIfExists("com.android.server.wm.ActivityTaskManagerService");
         if (atmsClass != null) {
             try {
@@ -205,6 +210,198 @@ public final class BackgroundRestrictOpt {
         }
     }
 
+    /**
+     * Hook Point 2: AMS dispatchForegroundActivitiesChanged(int pid, int uid, boolean foregroundActivities)
+     * Fires immediately when an app loses its foreground activity status (e.g. user presses Home).
+     */
+    private static void hookForegroundActivitiesChanged() {
+        Class<?> amsClass = findClassIfExists(ActivityManagerService);
+        if (amsClass == null) return;
+
+        try {
+            for (Method m : amsClass.getDeclaredMethods()) {
+                if ("dispatchForegroundActivitiesChanged".equals(m.getName())) {
+                    hook(m, new IHook() {
+                        @Override
+                        public void before() {
+                            try {
+                                Object[] args = getArgs();
+                                if (args != null && args.length >= 3) {
+                                    int pid = (Integer) args[0];
+                                    int uid = (Integer) args[1];
+                                    boolean foregroundActivities = (Boolean) args[2];
+                                    if (!foregroundActivities && isImmediateKillEnabled()) {
+                                        handleProcessNoForeground(pid, uid);
+                                    }
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                    });
+                }
+            }
+            XposedLog.logD(TAG, "Hooked ActivityManagerService.dispatchForegroundActivitiesChanged successfully.");
+        } catch (Throwable t) {
+            XposedLog.logE(TAG, "Failed to hook dispatchForegroundActivitiesChanged", t);
+        }
+    }
+
+    private static void handleProcessNoForeground(int pid, int uid) {
+        HashSet<String> restricted = getRestrictedPackages();
+        if (restricted.isEmpty()) return;
+
+        // 1. Try to match by reading /proc/<pid>/cmdline
+        String procName = null;
+        try {
+            File cmdline = new File("/proc/" + pid + "/cmdline");
+            if (cmdline.exists()) {
+                try (BufferedReader r = new BufferedReader(new FileReader(cmdline))) {
+                    String line = r.readLine();
+                    if (line != null) {
+                        procName = line.trim().replace("\0", "");
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        if (procName != null) {
+            for (String pkg : restricted) {
+                if (procName.equals(pkg) || procName.startsWith(pkg + ":")) {
+                    XposedLog.logI(TAG, "dispatchForegroundActivitiesChanged(false): terminating " + pkg + " (pid=" + pid + ")");
+                    terminatePackage(pkg, pid, "fg_activities_false");
+                    return;
+                }
+            }
+        }
+
+        // 2. Try match by UID
+        try {
+            Class<?> atClass = Class.forName("android.app.ActivityThread");
+            Method getPm = atClass.getMethod("getPackageManager");
+            Object pm = getPm.invoke(null);
+            if (pm != null) {
+                Method getPkgs = pm.getClass().getMethod("getPackagesForUid", int.class);
+                String[] pkgs = (String[]) getPkgs.invoke(pm, uid);
+                if (pkgs != null) {
+                    for (String p : pkgs) {
+                        if (restricted.contains(p)) {
+                            XposedLog.logI(TAG, "dispatchForegroundActivitiesChanged(false) by UID " + uid + ": terminating " + p + " (pid=" + pid + ")");
+                            terminatePackage(p, pid, "fg_activities_false_uid");
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    /**
+     * Hook Point 3: ActivityRecord.setState(ActivityState state, String reason)
+     * Fires immediately when any Activity transitions to STOPPED or PAUSED.
+     */
+    private static void hookActivityRecordLifecycle() {
+        Class<?> arClass = findClassIfExists("com.android.server.wm.ActivityRecord");
+        if (arClass == null) return;
+
+        try {
+            for (Method m : arClass.getDeclaredMethods()) {
+                if ("setState".equals(m.getName()) && m.getParameterTypes().length >= 1) {
+                    hook(m, new IHook() {
+                        @Override
+                        public void after() {
+                            if (!isImmediateKillEnabled()) return;
+                            try {
+                                Object stateObj = getArg(0);
+                                if (stateObj == null) return;
+                                String stateName = stateObj.toString();
+                                if ("STOPPED".equals(stateName) || "PAUSED".equals(stateName)) {
+                                    Object ar = getThisObject();
+                                    String pkg = (String) getField(ar, "packageName");
+                                    if (pkg != null && isRestricted(pkg)) {
+                                        int pid = 0;
+                                        try {
+                                            Object wpc = getField(ar, "app");
+                                            if (wpc != null) {
+                                                Boolean hasResumed = (Boolean) callMethod(wpc, "hasResumedActivity");
+                                                if (hasResumed != null && hasResumed) return; // Still active
+                                                Object pidVal = callMethod(wpc, "getPid");
+                                                if (pidVal instanceof Integer) pid = (Integer) pidVal;
+                                            }
+                                        } catch (Throwable ignored) {}
+
+                                        XposedLog.logI(TAG, "ActivityRecord.setState(" + stateName + "): terminating " + pkg + " (pid=" + pid + ")");
+                                        terminatePackage(pkg, pid, "activity_state_" + stateName.toLowerCase());
+                                    }
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                    });
+                }
+            }
+            XposedLog.logD(TAG, "Hooked ActivityRecord.setState successfully.");
+        } catch (Throwable t) {
+            XposedLog.logE(TAG, "Failed to hook ActivityRecord.setState", t);
+        }
+    }
+
+    /**
+     * Hook Point 4: ActivityTaskManagerService.activityStopped(IBinder token, ...)
+     * Client tells ATMS that an activity has fully stopped.
+     */
+    private static void hookActivityTaskManagerServiceActivityStopped() {
+        Class<?> atmsClass = findClassIfExists("com.android.server.wm.ActivityTaskManagerService");
+        if (atmsClass == null) return;
+
+        try {
+            for (Method m : atmsClass.getDeclaredMethods()) {
+                if ("activityStopped".equals(m.getName())) {
+                    hook(m, new IHook() {
+                        @Override
+                        public void after() {
+                            if (!isImmediateKillEnabled()) return;
+                            Object token = getArg(0);
+                            if (token == null) return;
+                            try {
+                                Class<?> arClass = findClassIfExists("com.android.server.wm.ActivityRecord");
+                                if (arClass != null) {
+                                    Method forToken = null;
+                                    for (Method arm : arClass.getDeclaredMethods()) {
+                                        if ("forTokenLocked".equals(arm.getName())) {
+                                            forToken = arm;
+                                            break;
+                                        }
+                                    }
+                                    if (forToken != null) {
+                                        Object ar = forToken.invoke(null, token);
+                                        if (ar != null) {
+                                            String pkg = (String) getField(ar, "packageName");
+                                            if (pkg != null && isRestricted(pkg)) {
+                                                int pid = 0;
+                                                try {
+                                                    Object wpc = getField(ar, "app");
+                                                    if (wpc != null) {
+                                                        Object pidVal = callMethod(wpc, "getPid");
+                                                        if (pidVal instanceof Integer) pid = (Integer) pidVal;
+                                                    }
+                                                } catch (Throwable ignored) {}
+                                                terminatePackage(pkg, pid, "atms_activity_stopped");
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                    });
+                }
+            }
+            XposedLog.logD(TAG, "Hooked ATMS.activityStopped successfully.");
+        } catch (Throwable t) {
+            XposedLog.logE(TAG, "Failed to hook ATMS.activityStopped", t);
+        }
+    }
+
+    /**
+     * Hook Point 5: Prevent background broadcast wakeups for restricted apps
+     */
     private static void hookBroadcastWakeupSuppression() {
         Class<?> plClass = findClassIfExists(ProcessList);
         if (plClass == null) return;
@@ -331,9 +528,10 @@ public final class BackgroundRestrictOpt {
             Binder.restoreCallingIdentity(ident);
         }
 
-        // 3. Fallback via runtime command
+        // 3. Fallback via runtime command (am force-stop and pkill -9)
         try {
             Runtime.getRuntime().exec(new String[]{"am", "force-stop", packageName});
+            Runtime.getRuntime().exec(new String[]{"pkill", "-9", "-f", packageName});
         } catch (Throwable ignored) {
         }
     }
