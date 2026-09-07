@@ -144,8 +144,9 @@ public final class BackgroundRestrictOpt {
 
                         String pkg = extractPackageNameFromTask(taskObj);
                         if (shouldTerminateOnTaskRemoved(pkg)) {
-                            XposedLog.logI(TAG, "Task cleared from RecentTasks.remove: " + pkg);
-                            terminatePackage(pkg, 0, "recents_cleared");
+                            int pid = extractPidFromTask(taskObj);
+                            XposedLog.logI(TAG, "Task cleared from RecentTasks.remove: " + pkg + ", pid=" + pid);
+                            terminatePackage(pkg, pid, "recents_cleared");
                         }
                     }
                 });
@@ -166,8 +167,9 @@ public final class BackgroundRestrictOpt {
                                 Object taskObj = getThisObject();
                                 String pkg = extractPackageNameFromTask(taskObj);
                                 if (shouldTerminateOnTaskRemoved(pkg)) {
-                                    XposedLog.logI(TAG, "Task removed via Task." + m.getName() + ": " + pkg);
-                                    terminatePackage(pkg, 0, "task_removed");
+                                    int pid = extractPidFromTask(taskObj);
+                                    XposedLog.logI(TAG, "Task removed via Task." + m.getName() + ": " + pkg + ", pid=" + pid);
+                                    terminatePackage(pkg, pid, "task_removed");
                                 }
                             }
                         });
@@ -209,8 +211,9 @@ public final class BackgroundRestrictOpt {
                                             if (taskObj != null) {
                                                 String pkg = extractPackageNameFromTask(taskObj);
                                                 if (shouldTerminateOnTaskRemoved(pkg)) {
-                                                    XposedLog.logI(TAG, "Task removed via ATMS.removeTask: " + pkg);
-                                                    terminatePackage(pkg, 0, "atms_remove_task");
+                                                    int pid = extractPidFromTask(taskObj);
+                                                    XposedLog.logI(TAG, "Task removed via ATMS.removeTask: " + pkg + ", pid=" + pid);
+                                                    terminatePackage(pkg, pid, "atms_remove_task");
                                                 }
                                             }
                                         }
@@ -477,6 +480,27 @@ public final class BackgroundRestrictOpt {
         }
     }
 
+    public static int extractPidFromTask(Object task) {
+        if (task == null) return 0;
+        try {
+            Object ar = callMethod(task, "getTopActivity");
+            if (ar == null) {
+                ar = callMethod(task, "getTopNonFinishingActivity");
+            }
+            if (ar == null) {
+                ar = callMethod(task, "topRunningActivityLocked");
+            }
+            if (ar != null) {
+                Object wpc = getField(ar, "app");
+                if (wpc != null) {
+                    Object pidVal = callMethod(wpc, "getPid");
+                    if (pidVal instanceof Integer) return (Integer) pidVal;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return 0;
+    }
+
     public static String extractPackageNameFromTask(Object task) {
         if (task == null) return null;
         try {
@@ -508,9 +532,34 @@ public final class BackgroundRestrictOpt {
 
     public static void terminatePackage(String packageName, int pid, String reason) {
         if (packageName == null || packageName.isEmpty()) return;
-        XposedLog.logI(TAG, "Terminating restricted package [" + packageName + "], pid: " + pid + ", reason: " + reason);
+        XposedLog.logI(TAG, "Terminating package [" + packageName + "], pid: " + pid + ", reason: " + reason);
 
-        // 1. Instant SIGKILL to the process PID if known
+        // Fallback: If pid is 0, find PID from /proc cmdline
+        if (pid <= 0) {
+            try {
+                File procDir = new File("/proc");
+                File[] files = procDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        String name = f.getName();
+                        if (!name.isEmpty() && Character.isDigit(name.charAt(0))) {
+                            File cmdline = new File(f, "cmdline");
+                            if (cmdline.exists() && cmdline.canRead()) {
+                                try (BufferedReader br = new BufferedReader(new FileReader(cmdline))) {
+                                    String cmd = br.readLine();
+                                    if (cmd != null && (cmd.equals(packageName) || cmd.startsWith(packageName + ":") || cmd.startsWith(packageName + "\0"))) {
+                                        pid = Integer.parseInt(name);
+                                        break;
+                                    }
+                                } catch (Throwable ignored) {}
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        // 1. Instant SIGKILL to the process PID
         if (pid > 0) {
             try {
                 android.os.Process.killProcess(pid);

@@ -246,9 +246,6 @@ public class MainActivity extends AppCompatActivity {
         Set<String> restricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
         syncPolicyFiles(vips, restricted);
         syncImmediateKillFile(prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false));
-        try {
-            startService(new Intent(this, CleanExitService.class));
-        } catch (Throwable ignored) {}
     }
 
     @Override
@@ -276,9 +273,6 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         mTimerHandler.removeCallbacksAndMessages(null);
         if (isFinishing()) {
-            try {
-                stopService(new Intent(this, CleanExitService.class));
-            } catch (Throwable ignored) {}
             android.os.Process.killProcess(android.os.Process.myPid());
             System.exit(0);
         }

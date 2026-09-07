@@ -309,8 +309,8 @@ public class ApplyAdjOpt {
             ApplicationInfo info = (ApplicationInfo) getField(app, SystemField.info);
             if (info == null) return;
 
-            // Bỏ qua cho những app bị giới hạn nền trong tính năng mở rộng giới hạn nền
-            if (BackgroundRestrictOpt.isRestricted(info.packageName)) {
+            // Bỏ qua cho những app bị giới hạn nền và chính AppRetention (không bao giờ boost chạy ngầm)
+            if (BackgroundRestrictOpt.isRestricted(info.packageName) || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(info.packageName)) {
                 if (mProcessRecordMap.contains(app)) {
                     mPreviousBackgroundAppList.removeIf(
                         processIndexRecord -> Objects.equals(processIndexRecord.app, app)

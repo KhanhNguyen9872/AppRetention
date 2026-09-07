@@ -110,10 +110,10 @@ public final class KillShieldOpt {
                             String reason = reasonObj != null ? reasonObj.toString() : "";
                             Object thisProcess = thisObject();
 
-                            // Never shield restricted apps
+                            // Never shield restricted apps or AppRetention itself
                             try {
                                 ApplicationInfo info = (ApplicationInfo) getField(thisProcess, SystemField.info);
-                                if (info != null && BackgroundRestrictOpt.isRestricted(info.packageName)) {
+                                if (info != null && (BackgroundRestrictOpt.isRestricted(info.packageName) || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(info.packageName))) {
                                     return;
                                 }
                             } catch (Throwable ignored) {}

@@ -51,8 +51,11 @@ public class NubiaPolicy extends HCBase {
     private static boolean isRestrictedTarget(Object[] args) {
         if (args == null) return false;
         for (Object a : args) {
-            if (a instanceof String && BackgroundRestrictOpt.isRestricted((String) a)) {
-                return true;
+            if (a instanceof String) {
+                String pkg = (String) a;
+                if (BackgroundRestrictOpt.isRestricted(pkg) || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(pkg)) {
+                    return true;
+                }
             }
         }
         return false;
