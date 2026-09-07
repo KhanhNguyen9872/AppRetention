@@ -153,7 +153,7 @@ public final class BackgroundRestrictOpt {
         if (taskClass != null) {
             try {
                 for (Method m : taskClass.getDeclaredMethods()) {
-                    if ("removeImmediately".equals(m.getName()) || "removeIfPossible".equals(m.getName())) {
+                    if (m.getName().startsWith("remove")) {
                         hook(m, new IHook() {
                             @Override
                             public void before() {
@@ -187,8 +187,19 @@ public final class BackgroundRestrictOpt {
                                     try {
                                         Object rwc = getField(getThisObject(), "mRootWindowContainer");
                                         if (rwc != null) {
-                                            Method anyTaskMethod = rwc.getClass().getMethod("anyTaskForId", int.class);
-                                            Object taskObj = anyTaskMethod.invoke(rwc, taskId);
+                                            Object taskObj = null;
+                                            for (Method atm : rwc.getClass().getMethods()) {
+                                                if ("anyTaskForId".equals(atm.getName())) {
+                                                    try {
+                                                        if (atm.getParameterTypes().length == 1) {
+                                                            taskObj = atm.invoke(rwc, taskId);
+                                                        } else if (atm.getParameterTypes().length == 2) {
+                                                            taskObj = atm.invoke(rwc, taskId, 0);
+                                                        }
+                                                        if (taskObj != null) break;
+                                                    } catch (Throwable ignored) {}
+                                                }
+                                            }
                                             if (taskObj != null) {
                                                 String pkg = extractPackageNameFromTask(taskObj);
                                                 if (pkg != null && isRestricted(pkg)) {

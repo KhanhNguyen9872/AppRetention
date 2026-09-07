@@ -1261,6 +1261,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static volatile boolean sWatchdogActive = false;
     private static final Pattern FG_PKG_PATTERN = Pattern.compile("u\\d+\\s+([a-zA-Z0-9._]+)/");
+    private static final Pattern RECENTS_PKG_PATTERN = Pattern.compile("realActivity=([a-zA-Z0-9._]+)/");
 
     private synchronized void startBackgroundWatchdog() {
         if (sWatchdogActive) return;
@@ -1268,22 +1269,29 @@ public class MainActivity extends AppCompatActivity {
         sWorkerPool.execute(() -> {
             while (sWatchdogActive) {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(1200);
                     if (prefs == null || !RootTool.isRootAvailable()) continue;
-                    boolean immediateKill = prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
-                    if (!immediateKill) continue;
 
                     Set<String> restrictSet = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
                     if (restrictSet == null || restrictSet.isEmpty()) continue;
 
+                    boolean immediateKill = prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
                     String fgPkg = getForegroundPackageViaRoot();
+                    Set<String> recentsPkgs = immediateKill ? Collections.emptySet() : getRecentsPackagesViaRoot();
+
                     for (String pkg : restrictSet) {
                         if (pkg == null || pkg.isEmpty() || pkg.equals(fgPkg)) {
                             // Currently active in foreground, don't terminate
                             continue;
                         }
 
-                        // Restricted app is not in foreground; check if it has running processes
+                        // If immediate kill is disabled, allow the app to run as long as it remains in Recents
+                        if (!immediateKill && recentsPkgs.contains(pkg)) {
+                            continue;
+                        }
+
+                        // Restricted app is either out of screen (immediate kill) OR cleared from recents.
+                        // Terminate any running background processes.
                         String pidStr = RootTool.runCommand("pidof " + pkg + " 2>/dev/null");
                         if (pidStr == null || pidStr.trim().isEmpty()) {
                             pidStr = RootTool.runCommand("pgrep -f " + pkg + " 2>/dev/null");
@@ -1312,6 +1320,20 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Throwable ignored) {}
         return null;
+    }
+
+    private Set<String> getRecentsPackagesViaRoot() {
+        Set<String> set = new HashSet<>();
+        try {
+            String out = RootTool.runCommand("dumpsys activity recents 2>/dev/null | grep 'realActivity='");
+            if (out != null) {
+                Matcher m = RECENTS_PKG_PATTERN.matcher(out);
+                while (m.find()) {
+                    set.add(m.group(1));
+                }
+            }
+        } catch (Throwable ignored) {}
+        return set;
     }
 
     private void checkAndEnforceRestrictedWatchdog() {
