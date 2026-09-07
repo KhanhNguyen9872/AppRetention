@@ -168,6 +168,49 @@ public class ApplyAdjOpt {
                     Object app = getArg(0);
                     if (app == null) return;
 
+                    ApplyAdjOpt.ProcessRecord pr = new ApplyAdjOpt.ProcessRecord(app);
+                    boolean isRestricted = pr.packageName != null && BackgroundRestrictOpt.isRestricted(pr.packageName);
+
+                    if (isRestricted) {
+                        if (BackgroundRestrictOpt.isImmediateKillEnabled()) {
+                            Object mState = pr.mState != null ? pr.mState : getField(app, SystemField.mState);
+                            Integer importance = null;
+                            try {
+                                importance = (Integer) callStaticMethod(
+                                    ActivityManager$RunningAppProcessInfo,
+                                    procStateToImportance,
+                                    callMethod(mState, getCurProcState)
+                                );
+                            } catch (Throwable ignored) {}
+
+                            Integer curProcState = null;
+                            try {
+                                curProcState = (Integer) callMethod(mState, getCurProcState);
+                            } catch (Throwable ignored) {}
+
+                            boolean notForeground = (importance != null && importance > ImportanceInfo.IMPORTANCE_VISIBLE)
+                                    || (curProcState != null && curProcState > 2);
+
+                            if (notForeground) {
+                                int pid = 0;
+                                try {
+                                    Object pidObj = getField(app, "mPid");
+                                    if (pidObj == null) pidObj = getField(app, "pid");
+                                    if (pidObj instanceof Integer) pid = (Integer) pidObj;
+                                } catch (Throwable ignored) {}
+
+                                XposedLog.logI(TAG, "Immediate kill triggered for restricted app: " + pr.packageName + " (pid=" + pid + ")");
+                                BackgroundRestrictOpt.terminatePackage(pr.packageName, pid, "immediate_kill_out_screen");
+                                return;
+                            }
+                        }
+
+                        // Demote restricted apps to cached tier (ADJ 900)
+                        pr.setCurRawAdj(900);
+                        pr.setCurAdj(900);
+                        return;
+                    }
+
                     updateBackgroundAppList(app);
 
                     int index = -1;
@@ -178,33 +221,15 @@ public class ApplyAdjOpt {
                     }
                     if (index == -1) return;
 
-                    ApplyAdjOpt.ProcessRecord pr = new ApplyAdjOpt.ProcessRecord(app);
-                    boolean isRestricted = pr.packageName != null && BackgroundRestrictOpt.isRestricted(pr.packageName);
-
-                    if (isRestricted && BackgroundRestrictOpt.isImmediateKillEnabled()) {
-                        Object mState = getField(app, SystemField.mState);
-                        Integer importance = (Integer) callStaticMethod(
-                            ActivityManager$RunningAppProcessInfo,
-                            procStateToImportance,
-                            callMethod(mState, getCurProcState)
-                        );
-                        if (importance != null && importance > ImportanceInfo.IMPORTANCE_VISIBLE) {
-                            BackgroundRestrictOpt.terminatePackage(pr.packageName, "immediate_kill_out_screen");
-                            return;
-                        }
-                    }
-
                     boolean isPerceptibleTierEnabled = SystemPropTool.getProp("persist.hchen.adj.perceptible.enable", true);
                     int perceptibleCount = SystemPropTool.getProp("persist.hchen.adj.perceptible.count", 8);
 
                     boolean isMain = pr.isMainProcess || pr.isolated || pr.isSdkSandbox;
                     HashSet<String> vipPackages = getVipPackages();
-                    boolean isVip = !isRestricted && pr.packageName != null && vipPackages.contains(pr.packageName);
+                    boolean isVip = pr.packageName != null && vipPackages.contains(pr.packageName);
 
                     int adj;
-                    if (isRestricted) {
-                        adj = 900; // Demote restricted apps to cached tier
-                    } else if (isVip) {
+                    if (isVip) {
                         // VIP apps are permanently pinned at ADJ 200 (Total Kill Immunity)
                         adj = isMain ? PERCEPTIBLE_TIER_MIN_ADJ : PERCEPTIBLE_SUB_MIN_ADJ;
                     } else if (isPerceptibleTierEnabled && index < perceptibleCount) {
@@ -224,13 +249,12 @@ public class ApplyAdjOpt {
                     }
                     pr.setCurAdj(adj);
                     pr.setCurRawAdj(adj);
-                    // AndroidLog.logD(TAG, "update: packageName=" + pr.packageName + ", processName=" + pr.processName + ", adj=" + adj);
                 }
             }
         );
     }
 
-        private static long lastVipCheckTime = 0;
+    private static long lastVipCheckTime = 0;
     private static HashSet<String> cachedVipSet = new HashSet<>();
 
     private static synchronized HashSet<String> getVipPackages() {

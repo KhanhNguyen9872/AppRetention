@@ -151,15 +151,18 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnCopyLog;
     private MaterialButton btnClearLog;
 
-    // 5-second recurring auto-refresh handler for Dashboard
+    // 3-second recurring auto-refresh handler for Dashboard and active watchdog
     private final Handler mTimerHandler = new Handler(Looper.getMainLooper());
     private final Runnable mPeriodicRefreshRunnable = new Runnable() {
         @Override
         public void run() {
             if (pageDashboard != null && pageDashboard.getVisibility() == View.VISIBLE) {
                 updateHardwareStats();
+                refreshRunningProcesses();
+            } else if (prefs != null && prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false)) {
+                checkAndEnforceRestrictedWatchdog();
             }
-            mTimerHandler.postDelayed(this, 5000);
+            mTimerHandler.postDelayed(this, 3000);
         }
     };
 
@@ -181,6 +184,12 @@ public class MainActivity extends AppCompatActivity {
         setupNavigation();
         setupSwitches();
         checkAndPromptRoot();
+
+        // Initial sync of policy files
+        Set<String> vips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
+        Set<String> restricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
+        syncPolicyFiles(vips, restricted);
+        syncImmediateKillFile(prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false));
     }
 
     @Override
@@ -199,10 +208,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void initViews() {
         // Top Toolbar
-        TextView tvAppVersion = findViewById(R.id.tvAppVersion);
-        if (tvAppVersion != null) {
-            tvAppVersion.setText("v" + BuildConfig.VERSION_NAME);
-        }
 
         MaterialButton btnGithub = findViewById(R.id.btnGithub);
         if (btnGithub != null) {
@@ -516,6 +521,12 @@ public class MainActivity extends AppCompatActivity {
         sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.edit().putBoolean(key, isChecked).apply();
             RootTool.setProp(key, String.valueOf(isChecked));
+            if (KEY_RESTRICT_IMMEDIATE.equals(key)) {
+                syncImmediateKillFile(isChecked);
+                if (isChecked) {
+                    refreshRunningProcesses();
+                }
+            }
         });
     }
 
@@ -596,6 +607,8 @@ public class MainActivity extends AppCompatActivity {
 
         RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
         RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
+
+        syncPolicyFiles(vipSet, restrictSet);
 
         if (processAdapter != null) {
             processAdapter.setPolicyPackages(vipSet, restrictSet);
@@ -896,10 +909,17 @@ public class MainActivity extends AppCompatActivity {
 
             if (RootTool.isRootAvailable()) {
                 List<RootTool.ProcessInfo> rootProcs = RootTool.getRunningProcesses();
+                Set<String> restrictSet = prefs != null ? prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()) : Collections.emptySet();
+                boolean immediateKill = prefs != null && prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false);
+
                 for (RootTool.ProcessInfo pi : rootProcs) {
                     String pkg = pi.processName;
                     if (pkg.contains(":")) {
                         pkg = pkg.substring(0, pkg.indexOf(':'));
+                    }
+                    if (immediateKill && restrictSet.contains(pkg) && pi.adj > 0) {
+                        RootTool.killProcess(pi.pid, pkg);
+                        continue;
                     }
                     String label = sLabelCache.get(pkg);
                     Drawable.ConstantState iconState = sIconCache.get(pkg);
@@ -1233,4 +1253,74 @@ public class MainActivity extends AppCompatActivity {
             });
         });
     }
+
+    private void checkAndEnforceRestrictedWatchdog() {
+        sWorkerPool.execute(() -> {
+            if (prefs == null || !RootTool.isRootAvailable()) return;
+            Set<String> restrictSet = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
+            if (restrictSet.isEmpty()) return;
+            List<RootTool.ProcessInfo> rootProcs = RootTool.getRunningProcesses();
+            for (RootTool.ProcessInfo pi : rootProcs) {
+                String pkg = pi.processName;
+                if (pkg.contains(":")) {
+                    pkg = pkg.substring(0, pkg.indexOf(':'));
+                }
+                if (restrictSet.contains(pkg) && pi.adj > 0) {
+                    RootTool.killProcess(pi.pid, pkg);
+                }
+            }
+        });
+    }
+
+    private void syncPolicyFiles(Set<String> vipSet, Set<String> restrictSet) {
+        sWorkerPool.execute(() -> {
+            File[] restrictFiles = new File[]{
+                new File("/data/user_de/0/com.hchen.appretention/files/restricted_packages.txt"),
+                new File(getFilesDir(), "restricted_packages.txt")
+            };
+            for (File rf : restrictFiles) {
+                try {
+                    File parent = rf.getParentFile();
+                    if (parent != null && !parent.exists()) parent.mkdirs();
+                    try (FileWriter writer = new FileWriter(rf)) {
+                        for (String pkg : restrictSet) {
+                            writer.write(pkg + "\n");
+                        }
+                        writer.flush();
+                    }
+                    rf.setReadable(true, false);
+                    rf.setWritable(true, false);
+                } catch (Throwable ignored) {}
+            }
+
+            if (RootTool.hasRoot()) {
+                RootTool.runCommand("chmod -R 666 /data/user_de/0/com.hchen.appretention/files/*.txt 2>/dev/null");
+            }
+        });
+    }
+
+    private void syncImmediateKillFile(boolean isChecked) {
+        sWorkerPool.execute(() -> {
+            File[] files = new File[]{
+                new File("/data/user_de/0/com.hchen.appretention/files/immediate_kill.txt"),
+                new File(getFilesDir(), "immediate_kill.txt")
+            };
+            for (File f : files) {
+                try {
+                    File parent = f.getParentFile();
+                    if (parent != null && !parent.exists()) parent.mkdirs();
+                    try (FileWriter writer = new FileWriter(f)) {
+                        writer.write(isChecked ? "1\n" : "0\n");
+                        writer.flush();
+                    }
+                    f.setReadable(true, false);
+                    f.setWritable(true, false);
+                } catch (Throwable ignored) {}
+            }
+            if (RootTool.hasRoot()) {
+                RootTool.runCommand("chmod 666 /data/user_de/0/com.hchen.appretention/files/immediate_kill.txt 2>/dev/null");
+            }
+        });
+    }
+
 }
