@@ -167,4 +167,5 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_force_stop_success">Force stopped %s</string>
     <string name="toast_copied_to_clipboard">Copied %s to clipboard</string>
 
+    <string name="loading_processes">Scanning running processes...</string>
 </resources>

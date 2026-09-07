@@ -291,11 +291,43 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
+                    <!-- Loading Animation View when 0 apps / scanning -->
+                    <LinearLayout
+                        android:id="@+id/layoutProcessesLoading"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:paddingTop="28dp"
+                        android:paddingBottom="28dp"
+                        android:visibility="visible">
+
+                        <com.google.android.material.progressindicator.CircularProgressIndicator
+                            android:id="@+id/pbProcessesLoading"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:indeterminate="true"
+                            app:indicatorSize="32dp"
+                            app:trackThickness="3dp"
+                            app:indicatorColor="@color/primary_accent"
+                            app:trackColor="@color/card_inner" />
+
+                        <TextView
+                            android:id="@+id/tvProcessesLoading"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="@string/loading_processes"
+                            android:textColor="@color/text_muted"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvProcesses"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false" />
+                        android:nestedScrollingEnabled="false"
+                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

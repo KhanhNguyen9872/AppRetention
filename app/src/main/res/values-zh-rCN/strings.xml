@@ -97,4 +97,5 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_force_stop_success">已强行停止 %s</string>
     <string name="toast_copied_to_clipboard">已复制 %s 到剪贴板</string>
 
+    <string name="loading_processes">正在扫描后台运行进程...</string>
 </resources>

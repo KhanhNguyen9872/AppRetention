@@ -39,11 +39,20 @@ public class ProcessAdapter extends RecyclerView.Adapter<ProcessAdapter.ViewHold
     }
 
     public void setPolicyPackages(Set<String> vips, Set<String> restricted) {
-        vipPackages.clear();
-        if (vips != null) vipPackages.addAll(vips);
-        restrictedPackages.clear();
-        if (restricted != null) restrictedPackages.addAll(restricted);
-        notifyDataSetChanged();
+        boolean changed = false;
+        if (!vipPackages.equals(vips)) {
+            vipPackages.clear();
+            if (vips != null) vipPackages.addAll(vips);
+            changed = true;
+        }
+        if (!restrictedPackages.equals(restricted)) {
+            restrictedPackages.clear();
+            if (restricted != null) restrictedPackages.addAll(restricted);
+            changed = true;
+        }
+        if (changed) {
+            notifyDataSetChanged();
+        }
     }
 
     public void removeItem(int position) {

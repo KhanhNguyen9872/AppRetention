@@ -115,6 +115,8 @@ public class MainActivity extends AppCompatActivity {
     private LinearProgressIndicator pbStorageUsage;
 
     private TextView tvProcessCount;
+    private View layoutProcessesLoading;
+    private final java.util.concurrent.atomic.AtomicBoolean isScanningProcesses = new java.util.concurrent.atomic.AtomicBoolean(false);
     private RecyclerView rvProcesses;
     private ProcessAdapter processAdapter;
     private final List<ProcessItem> processList = new ArrayList<>();
@@ -275,6 +277,7 @@ public class MainActivity extends AppCompatActivity {
         pbStorageUsage = findViewById(R.id.pbStorageUsage);
 
         tvProcessCount = findViewById(R.id.tvProcessCount);
+        layoutProcessesLoading = findViewById(R.id.layoutProcessesLoading);
         rvProcesses = findViewById(R.id.rvProcesses);
         if (rvProcesses != null) {
             rvProcesses.setLayoutManager(new LinearLayoutManager(this));
@@ -1169,6 +1172,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refreshRunningProcesses() {
+        if (isScanningProcesses.getAndSet(true)) {
+            return;
+        }
         sWorkerPool.execute(() -> {
             List<ProcessItem> items = new ArrayList<>();
             PackageManager pm = getPackageManager();
@@ -1319,17 +1325,36 @@ public class MainActivity extends AppCompatActivity {
             } catch (Throwable t) {
                 android.util.Log.e("MainActivity", "Error in refreshRunningProcesses", t);
             } finally {
+                isScanningProcesses.set(false);
                 runOnUiThread(() -> {
                     if (processAdapter != null) {
                         processAdapter.setPolicyPackages(
                             prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()),
                             prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet())
                         );
-                        processAdapter.updateList(items);
+                        // Anti-flicker: If we already have items and a background scan returns empty, keep previous items!
+                        if (!items.isEmpty() || processAdapter.getItemCount() == 0) {
+                            processAdapter.updateList(items);
+                        }
                     }
-                    if (tvProcessCount != null) {
-                        tvProcessCount.setText(getString(R.string.format_process_count, items.size()));
+
+                    int currentCount = (processAdapter != null) ? processAdapter.getItemCount() : items.size();
+
+                    if (currentCount > 0) {
+                        if (layoutProcessesLoading != null) layoutProcessesLoading.setVisibility(View.GONE);
+                        if (rvProcesses != null) rvProcesses.setVisibility(View.VISIBLE);
+                        if (tvProcessCount != null) {
+                            tvProcessCount.setText(getString(R.string.format_process_count, currentCount));
+                        }
+                    } else {
+                        // 0 apps: show loading animation
+                        if (layoutProcessesLoading != null) layoutProcessesLoading.setVisibility(View.VISIBLE);
+                        if (rvProcesses != null) rvProcesses.setVisibility(View.GONE);
+                        if (tvProcessCount != null) {
+                            tvProcessCount.setText(getString(R.string.format_process_count, 0));
+                        }
                     }
+
                     if (swipeRefreshDashboard != null && swipeRefreshDashboard.isRefreshing()) {
                         swipeRefreshDashboard.setRefreshing(false);
                     }

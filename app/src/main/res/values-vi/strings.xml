@@ -167,4 +167,5 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="toast_force_stop_success">Đã buộc dừng %s</string>
     <string name="toast_copied_to_clipboard">Đã sao chép %s vào bộ nhớ tạm</string>
 
+    <string name="loading_processes">Đang quét tiến trình chạy ngầm...</string>
 </resources>
