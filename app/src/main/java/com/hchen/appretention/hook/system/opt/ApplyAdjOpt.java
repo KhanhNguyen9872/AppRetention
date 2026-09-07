@@ -253,13 +253,35 @@ public class ApplyAdjOpt {
     }
 
     private static long lastVipCheckTime = 0;
+    public static final String VIP_FILE_PATH_DE = "/data/user_de/0/com.hchen.appretention/files/vip_packages.txt";
+    public static final String VIP_FILE_PATH_CE = "/data/user/0/com.hchen.appretention/files/vip_packages.txt";
+
     private static HashSet<String> cachedVipSet = new HashSet<>();
 
     private static synchronized HashSet<String> getVipPackages() {
         long now = System.currentTimeMillis();
-        if (now - lastVipCheckTime > 3000) {
+        if (now - lastVipCheckTime > 2000) {
             lastVipCheckTime = now;
             HashSet<String> vipSet = new HashSet<>();
+
+            // 1. Read from shared configuration files (no length limits)
+            java.io.File[] candidateFiles = new java.io.File[]{
+                new java.io.File(VIP_FILE_PATH_DE),
+                new java.io.File(VIP_FILE_PATH_CE)
+            };
+            for (java.io.File f : candidateFiles) {
+                if (f.exists() && f.canRead()) {
+                    try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(f))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String trimmed = line.trim();
+                            if (!trimmed.isEmpty()) vipSet.add(trimmed);
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+
+            // 2. Read from system property
             try {
                 String propVip = SystemPropTool.getProp("persist.hchen.adj.vip_packages", "");
                 if (!propVip.isEmpty()) {
@@ -268,9 +290,9 @@ public class ApplyAdjOpt {
                         if (!trimmed.isEmpty()) vipSet.add(trimmed);
                     }
                 }
-                cachedVipSet = vipSet;
-            } catch (Throwable ignored) {
-            }
+            } catch (Throwable ignored) {}
+
+            cachedVipSet = vipSet;
         }
         return cachedVipSet;
     }

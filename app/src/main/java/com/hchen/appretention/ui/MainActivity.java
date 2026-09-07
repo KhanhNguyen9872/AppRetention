@@ -1828,6 +1828,25 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Throwable ignored) {}
             }
 
+            File[] vipFiles = new File[]{
+                new File("/data/user_de/0/com.hchen.appretention/files/vip_packages.txt"),
+                new File(getFilesDir(), "vip_packages.txt")
+            };
+            for (File vf : vipFiles) {
+                try {
+                    File parent = vf.getParentFile();
+                    if (parent != null && !parent.exists()) parent.mkdirs();
+                    try (FileWriter writer = new FileWriter(vf)) {
+                        for (String pkg : vipSet) {
+                            writer.write(pkg + "\n");
+                        }
+                        writer.flush();
+                    }
+                    vf.setReadable(true, false);
+                    vf.setWritable(true, false);
+                } catch (Throwable ignored) {}
+            }
+
             if (RootTool.hasRoot()) {
                 RootTool.runCommand("chmod -R 666 /data/user_de/0/com.hchen.appretention/files/*.txt 2>/dev/null");
             }
