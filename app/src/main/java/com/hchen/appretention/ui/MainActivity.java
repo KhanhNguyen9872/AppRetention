@@ -281,6 +281,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void initViews() {
         // Top Toolbar
+        TextView tvAppVersion = findViewById(R.id.tvAppVersion);
+        if (tvAppVersion != null) {
+            String ver = BuildConfig.VERSION_NAME;
+            if (ver != null && !ver.isEmpty()) {
+                if (!ver.startsWith("v") && !ver.startsWith("V")) {
+                    ver = "v" + ver;
+                }
+                tvAppVersion.setText(ver);
+            }
+        }
 
         MaterialButton btnGithub = findViewById(R.id.btnGithub);
         if (btnGithub != null) {
@@ -1225,26 +1235,31 @@ public class MainActivity extends AppCompatActivity {
                 if (pbStorageUsage != null) pbStorageUsage.setProgress(storagePercent);
 
                 // GPU & Display
+                int effectiveGpuLoad = Math.max(0, gpuStats.loadPercent);
                 if (tvGpuDetails != null) {
-                    if (gpuStats.loadPercent >= 0 && gpuStats.clockMhz > 0) {
-                        tvGpuDetails.setText(getString(R.string.format_gpu_details_load_clock, gpuModel, gpuStats.loadPercent, gpuStats.clockMhz));
-                    } else if (gpuStats.loadPercent >= 0) {
-                        tvGpuDetails.setText(getString(R.string.format_gpu_details_load, gpuModel, gpuStats.loadPercent));
-                    } else if (gpuStats.clockMhz > 0) {
-                        tvGpuDetails.setText(getString(R.string.format_gpu_details_clock, gpuModel, gpuStats.clockMhz));
+                    if (gpuStats.clockMhz > 0) {
+                        tvGpuDetails.setText(getString(R.string.format_gpu_details_load_clock, effectiveGpuLoad, gpuStats.clockMhz));
                     } else {
-                        tvGpuDetails.setText(gpuModel);
+                        tvGpuDetails.setText(getString(R.string.format_gpu_details_load, effectiveGpuLoad));
                     }
                 }
                 if (pbGpuUsage != null) {
-                    if (gpuStats.loadPercent >= 0) {
-                        pbGpuUsage.setVisibility(View.VISIBLE);
-                        pbGpuUsage.setProgress(gpuStats.loadPercent);
-                    } else {
-                        pbGpuUsage.setVisibility(View.GONE);
-                    }
+                    pbGpuUsage.setVisibility(View.VISIBLE);
+                    pbGpuUsage.setProgress(effectiveGpuLoad);
                 }
-                if (tvDisplaySubtext != null) tvDisplaySubtext.setText(displayInfo);
+                if (tvDisplaySubtext != null) {
+                    StringBuilder sbGpu = new StringBuilder();
+                    if (gpuModel != null && !gpuModel.isEmpty()) {
+                        sbGpu.append(gpuModel);
+                    }
+                    if (displayInfo != null && !displayInfo.isEmpty()) {
+                        if (sbGpu.length() > 0) {
+                            sbGpu.append(" • ");
+                        }
+                        sbGpu.append(displayInfo);
+                    }
+                    tvDisplaySubtext.setText(sbGpu.toString());
+                }
 
                 // Battery & Thermal
                 if (bInfo != null) {

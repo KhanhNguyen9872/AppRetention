@@ -276,7 +276,7 @@
                             android:id="@+id/tvGpuDetails"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Loading..."
+                            android:text="0%"
                             android:textColor="@color/accent_cyan"
                             android:textSize="12.5sp"
                             android:textStyle="bold" />
@@ -295,7 +295,7 @@
                         android:id="@+id/tvDisplaySubtext"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Display: Calculating..."
+                        android:text="GPU / Display Info"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"
                         android:layout_marginBottom="14dp" />
