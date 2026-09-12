@@ -52,6 +52,16 @@ public final class AutoStartOpt {
             for (Method m : clazz.getDeclaredMethods()) {
                 String name = m.getName().toLowerCase();
                 Class<?> retType = m.getReturnType();
+                boolean supportedReturn = retType == boolean.class || retType == Boolean.class
+                    || retType == int.class || retType == Integer.class;
+                boolean hasPackageArgument = false;
+                for (Class<?> type : m.getParameterTypes()) {
+                    if (type == String.class) {
+                        hasPackageArgument = true;
+                        break;
+                    }
+                }
+                if (!supportedReturn || !hasPackageArgument) continue;
 
                 // Methods that allow / grant auto-start
                 if (name.contains("autorun") || name.contains("autostart") || name.contains("bootallow")
@@ -59,6 +69,7 @@ public final class AutoStartOpt {
                     hook(m, new IHook() {
                         @Override
                         public void before() {
+                            if (!isEnabled()) return;
                             // Check if target is a restricted app
                             Object[] args = getArgs();
                             if (args != null && args.length > 0) {
@@ -83,6 +94,7 @@ public final class AutoStartOpt {
                     hook(m, new IHook() {
                         @Override
                         public void before() {
+                            if (!isEnabled()) return;
                             Object[] args = getArgs();
                             if (args != null && args.length > 0) {
                                 for (Object a : args) {
@@ -108,6 +120,7 @@ public final class AutoStartOpt {
     }
 
     private static boolean isEnabled() {
-        return SystemPropTool.getProp("persist.hchen.autostart.opt.enable", true);
+        return ForkFeatureGate.isEnabled()
+            && SystemPropTool.getProp("persist.hchen.autostart.opt.enable", false);
     }
 }

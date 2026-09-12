@@ -169,7 +169,9 @@ public class ApplyAdjOpt {
                     if (app == null) return;
 
                     ApplyAdjOpt.ProcessRecord pr = new ApplyAdjOpt.ProcessRecord(app);
-                    boolean isRestricted = pr.packageName != null && BackgroundRestrictOpt.isRestricted(pr.packageName);
+                    boolean forkExtensionsEnabled = ForkFeatureGate.isEnabled();
+                    boolean isRestricted = forkExtensionsEnabled && pr.packageName != null
+                        && BackgroundRestrictOpt.isRestricted(pr.packageName);
 
                     if (isRestricted) {
                         if (BackgroundRestrictOpt.isImmediateKillEnabled()) {
@@ -218,6 +220,15 @@ public class ApplyAdjOpt {
                         }
                     }
                     if (index == -1) return;
+
+                    if (!forkExtensionsEnabled) {
+                        int upstreamAdj = (pr.isMainProcess || pr.isolated || pr.isSdkSandbox)
+                            ? Math.min(MAIN_PROCESS_MIN_ADJ + index, MAIN_PROCESS_MAX_ADJ)
+                            : Math.min(SUB_PROCESS_MIN_ADJ + index, SUB_PROCESS_MAX_ADJ);
+                        pr.setCurAdj(upstreamAdj);
+                        pr.setCurRawAdj(upstreamAdj);
+                        return;
+                    }
 
                     boolean isPerceptibleTierEnabled = SystemPropTool.getProp("persist.hchen.adj.perceptible.enable", true);
                     int perceptibleCount = SystemPropTool.getProp("persist.hchen.adj.perceptible.count", 8);
@@ -310,7 +321,8 @@ public class ApplyAdjOpt {
             if (info == null) return;
 
             // Bỏ qua cho những app bị giới hạn nền và chính AppRetention (không bao giờ boost chạy ngầm)
-            if (BackgroundRestrictOpt.isRestricted(info.packageName) || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(info.packageName)) {
+            if (ForkFeatureGate.isEnabled() && (BackgroundRestrictOpt.isRestricted(info.packageName)
+                || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(info.packageName))) {
                 if (mProcessRecordMap.contains(app)) {
                     mPreviousBackgroundAppList.removeIf(
                         processIndexRecord -> Objects.equals(processIndexRecord.app, app)

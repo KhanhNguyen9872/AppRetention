@@ -24,6 +24,7 @@ public class HardwareInfo {
     private static volatile String sGpuModel = null;
     private static volatile String sCpuMaxClock = null;
     private static volatile String sDisplayInfo = null;
+    private static volatile Long sPhysicalStorageBytes = null;
     private static volatile boolean sInitialized = false;
 
     private static final Map<String, String> SOC_LUT = new HashMap<>();
@@ -146,6 +147,39 @@ public class HardwareInfo {
         return sStorageType != null ? sStorageType : "";
     }
 
+    public static long getPhysicalStorageBytes() {
+        Long cached = sPhysicalStorageBytes;
+        if (cached != null) return cached;
+
+        long total = 0L;
+        String type = getStorageType().toUpperCase();
+        File blockRoot = new File("/sys/class/block");
+        File[] devices = blockRoot.listFiles();
+        if (devices != null) {
+            for (File device : devices) {
+                String name = device.getName();
+                boolean candidate;
+                if (type.contains("UFS")) {
+                    candidate = name.matches("sd[a-z]");
+                } else if (type.contains("EMMC")) {
+                    candidate = "mmcblk0".equals(name);
+                } else if (type.contains("NVME")) {
+                    candidate = "nvme0n1".equals(name);
+                } else {
+                    candidate = "mmcblk0".equals(name) || "nvme0n1".equals(name)
+                        || name.matches("sd[a-z]");
+                }
+                if (!candidate || new File(device, "partition").exists()) continue;
+                long sectors = readLongFromFile(new File(device, "size").getPath());
+                if (sectors > 0 && sectors <= Long.MAX_VALUE / 512L) {
+                    total += sectors * 512L;
+                }
+            }
+        }
+        sPhysicalStorageBytes = total;
+        return total;
+    }
+
     public static String getRamType() {
         if (sRamType == null) detectRam();
         return sRamType != null ? sRamType : "";
@@ -185,9 +219,6 @@ public class HardwareInfo {
 
         for (String p : busyPaths) {
             String line = readFileFirstLine(p);
-            if (line == null && RootTool.hasRoot()) {
-                line = RootTool.runCommand("cat " + p + " 2>/dev/null");
-            }
             if (line != null && !line.trim().isEmpty()) {
                 String clean = line.trim();
                 String[] parts = clean.split("\\s+");
@@ -228,9 +259,6 @@ public class HardwareInfo {
 
         for (String p : freqPaths) {
             String line = readFileFirstLine(p);
-            if (line == null && RootTool.hasRoot()) {
-                line = RootTool.runCommand("cat " + p + " 2>/dev/null");
-            }
             if (line != null && !line.trim().isEmpty()) {
                 try {
                     long freq = Long.parseLong(line.trim());
@@ -248,6 +276,42 @@ public class HardwareInfo {
                         break;
                     }
                 } catch (Throwable ignored) {}
+            }
+        }
+
+        // Batch all privileged fallbacks into one bounded root process instead of
+        // spawning one `su` command per unavailable sysfs path every refresh.
+        if (RootTool.hasRoot() && (load < 0 || clockMhz <= 0)) {
+            String script = "for f in " + String.join(" ", busyPaths)
+                + "; do if [ -r \"$f\" ]; then echo \"B:$f:$(cat \"$f\" 2>/dev/null)\"; break; fi; done; "
+                + "for f in " + String.join(" ", freqPaths)
+                + "; do if [ -r \"$f\" ]; then echo \"F:$f:$(cat \"$f\" 2>/dev/null)\"; break; fi; done";
+            String output = RootTool.runCommand(script);
+            for (String row : output.split("\\R")) {
+                String[] fields = row.trim().split(":", 3);
+                if (fields.length != 3 || fields[2].trim().isEmpty()) continue;
+                if ("B".equals(fields[0]) && load < 0) {
+                    String[] values = fields[2].trim().split("\\s+");
+                    try {
+                        if (values.length >= 2) {
+                            long busy = Long.parseLong(values[0]);
+                            long total = Long.parseLong(values[1]);
+                            if (total > 0) load = (int) Math.min(100, Math.max(0, busy * 100 / total));
+                        } else {
+                            int value = Integer.parseInt(values[0].replace("%", ""));
+                            if (value >= 0 && value <= 100) load = value;
+                        }
+                        if (load >= 0) sWorkingGpuBusyPath = fields[1];
+                    } catch (Throwable ignored) {}
+                } else if ("F".equals(fields[0]) && clockMhz <= 0) {
+                    try {
+                        long frequency = Long.parseLong(fields[2].trim());
+                        if (frequency > 100000000L) clockMhz = (int) (frequency / 1000000L);
+                        else if (frequency > 100000L) clockMhz = (int) (frequency / 1000L);
+                        else if (frequency > 100L) clockMhz = (int) frequency;
+                        if (clockMhz > 0) sWorkingGpuFreqPath = fields[1];
+                    } catch (Throwable ignored) {}
+                }
             }
         }
 

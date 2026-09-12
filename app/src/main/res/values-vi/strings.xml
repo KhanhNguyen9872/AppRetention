@@ -12,6 +12,7 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="status_root_active">Phạm vi: android (system_server) • Root: Hoạt động (KernelSU/Magisk/APatch)</string>
     <string name="status_root_limited">Phạm vi: android (system_server) • Root: Chưa cấp quyền (Chế độ hạn chế)</string>
     <string name="status_killshield_active">KillShield: Đang hoạt động &amp; Bảo vệ tiến trình ngầm</string>
+    <string name="status_fork_extensions_disabled">Baseline an toàn: đã tắt các hook hệ thống chỉ có ở bản fork</string>
     <string name="toast_root_active">Root: Hoạt động với đầy đủ quyền Kernel &amp; System</string>
 
     <!-- Hardware Monitor Card -->
@@ -27,9 +28,11 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="format_cpu_subtext_nocores">%s</string>
     <string name="format_cpu_root_required">%1$s • %2$d nhân</string>
     <string name="label_internal_storage">Bộ Nhớ Trong</string>
-    <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
-    <string name="format_storage_subtext">Còn trống: %.1f GB</string>
-    <string name="format_storage_subtext_type">Còn trống: %1$.1f GB • %2$s</string>
+    <string name="format_storage_details">%1$.1f GiB / %2$.1f GiB (%3$d%%)</string>
+    <string name="format_storage_subtext">Còn trống: %.1f GiB</string>
+    <string name="format_storage_subtext_type">Còn trống: %1$.1f GiB • %2$s</string>
+    <string name="format_storage_subtext_physical">Còn trống: %1$.1f GiB • Vật lý: %2$.0f GB</string>
+    <string name="format_storage_subtext_physical_type">Còn trống: %1$.1f GiB • Vật lý: %2$.0f GB • %3$s</string>
 
     <!-- Keep-Alive List Card -->
     <string name="title_keep_alive_list">Danh Sách Giữ Chạy Nền (Keep-Alive)</string>
@@ -40,6 +43,10 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Retention Controls Card -->
     <string name="title_retention_controls">Cấu Hình Giữ Đa Nhiệm</string>
+    <string name="title_fork_extensions">Bật các hook mở rộng của bản fork</string>
+    <string name="desc_fork_extensions">Công tắc an toàn tổng cho các hook chỉ có ở bản fork. Khi tắt, module giữ hành vi của upstream. Cần khởi động lại sau khi thay đổi.</string>
+    <string name="toast_reboot_required">Đã xác minh cài đặt. Hãy khởi động lại để áp dụng thay đổi hook.</string>
+    <string name="toast_setting_write_failed">Không thể xác minh cài đặt hệ thống. Đã khôi phục giá trị trước đó.</string>
     <string name="title_tiered_adj">Phân Tầng Kẹp Giữ Nền</string>
     <string name="desc_tiered_adj">Đẩy các app ngầm gần nhất lên phân tầng Perceptible (ADJ 200-245) để giữ trạng thái sống liên tục.</string>
     <string name="title_killshield">Khiên Bảo Vệ KillShield</string>
@@ -65,7 +72,7 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Root Permission Explanation Dialog -->
     <string name="dialog_root_title">Quyền Root Chưa Được Cấp</string>
-    <string name="dialog_root_message">AppRetention vẫn đang hoạt động ổn định ở tầng System Framework (các cơ chế khóa giữ nền và chống kill ngầm của module Xposed vẫn có hiệu lực).\n\nTuy nhiên, quyền Root là cần thiết để:\n• Đọc chính xác 100% tài nguyên phần cứng (CPU kernel load, RAM meminfo, Storage df).\n• Quét danh sách tiến trình chạy ngầm &amp; OOM Score ADJ theo thời gian thực.\n• Đồng bộ các thuộc tính hệ thống (persist properties) ngay lập tức.\n\nBạn có thể cấp quyền trong Magisk, KernelSU hoặc APatch bất cứ lúc nào.</string>
+    <string name="dialog_root_message" formatted="false">AppRetention vẫn đang hoạt động ổn định ở tầng System Framework (các cơ chế khóa giữ nền và chống kill ngầm của module Xposed vẫn có hiệu lực).\n\nTuy nhiên, quyền Root là cần thiết để:\n• Đọc chính xác 100% tài nguyên phần cứng (CPU kernel load, RAM meminfo, Storage df).\n• Quét danh sách tiến trình chạy ngầm &amp; OOM Score ADJ theo thời gian thực.\n• Đồng bộ các thuộc tính hệ thống (persist properties) ngay lập tức.\n\nBạn có thể cấp quyền trong Magisk, KernelSU hoặc APatch bất cứ lúc nào.</string>
     <string name="btn_dialog_retry_root">Thử lại / Cấp quyền</string>
     <string name="btn_dialog_continue_limited">Tiếp tục (Chế độ hạn chế)</string>
 

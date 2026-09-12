@@ -35,10 +35,12 @@ public final class DeviceIdleOpt {
             String name = m.getName();
             Class<?>[] params = m.getParameterTypes();
             if ((name.startsWith("isPowerSaveWhitelist") || name.startsWith("isExceptIdlePowerSaveWhitelist"))
-                    && params.length == 1 && params[0] == String.class) {
+                    && params.length == 1 && params[0] == String.class
+                    && (m.getReturnType() == boolean.class || m.getReturnType() == Boolean.class)) {
                 hook(m, new IHook() {
                     @Override
                     public void before() {
+                        if (!isEnabled()) return;
                         String pkg = (String) getArg(0);
                         if (isTargetUserApp(pkg)) {
                             setResult(true);
@@ -54,10 +56,12 @@ public final class DeviceIdleOpt {
                 String name = m.getName();
                 Class<?>[] params = m.getParameterTypes();
                 if ((name.startsWith("isAppOnWhitelist") || name.startsWith("isExceptIdlePowerSaveWhitelist"))
-                        && params.length == 1 && (params[0] == int.class || params[0] == Integer.class)) {
+                        && params.length == 1 && (params[0] == int.class || params[0] == Integer.class)
+                        && (m.getReturnType() == boolean.class || m.getReturnType() == Boolean.class)) {
                     hook(m, new IHook() {
                         @Override
                         public void before() {
+                            if (!isEnabled()) return;
                             int uid = (Integer) getArg(0);
                             if (uid >= 10000) { // User installed apps
                                 setResult(true);
@@ -72,7 +76,8 @@ public final class DeviceIdleOpt {
     }
 
     private static boolean isEnabled() {
-        return SystemPropTool.getProp("persist.hchen.doze.opt.enable", true);
+        return ForkFeatureGate.isEnabled()
+            && SystemPropTool.getProp("persist.hchen.doze.opt.enable", true);
     }
 
     private static boolean isTargetUserApp(String packageName) {

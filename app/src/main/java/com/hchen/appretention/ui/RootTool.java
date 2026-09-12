@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public final class RootTool {
     private static volatile Boolean sHasRoot = null;
@@ -15,17 +17,28 @@ public final class RootTool {
 
     private RootTool() {}
 
+    public interface PropWriteCallback {
+        void onComplete(boolean success);
+    }
+
     public static boolean isRootAvailable() {
         if (sHasRoot != null) return sHasRoot;
+        Process p = null;
         try {
-            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
+            p = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
+            if (!p.waitFor(5, TimeUnit.SECONDS)) {
+                p.destroyForcibly();
+                sHasRoot = false;
+                return false;
+            }
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line = reader.readLine();
-                sHasRoot = (line != null && line.contains("uid=0"));
+                sHasRoot = p.exitValue() == 0 && line != null && line.contains("uid=0");
             }
-            p.waitFor();
         } catch (Throwable e) {
             sHasRoot = false;
+        } finally {
+            if (p != null) p.destroy();
         }
         return Boolean.TRUE.equals(sHasRoot);
     }
@@ -38,32 +51,54 @@ public final class RootTool {
 
             try {
                 Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "setprop " + key + " \"" + value + "\""});
-                p.waitFor();
+                if (!p.waitFor(8, TimeUnit.SECONDS)) p.destroyForcibly();
+                p.destroy();
             } catch (Throwable ignored) {}
+        });
+    }
+
+    public static void setBooleanPropVerified(String key, boolean value, PropWriteCallback callback) {
+        sAsyncExecutor.execute(() -> {
+            boolean success = false;
+            if (key != null && key.matches("[A-Za-z0-9._-]+") && isRootAvailable()) {
+                Process setter = null;
+                Process reader = null;
+                try {
+                    String expected = String.valueOf(value);
+                    setter = Runtime.getRuntime().exec(new String[]{"su", "-c", "setprop " + key + " " + expected});
+                    boolean exited = setter.waitFor(5, TimeUnit.SECONDS);
+                    if (!exited) setter.destroyForcibly();
+
+                    if (exited && setter.exitValue() == 0) {
+                        reader = Runtime.getRuntime().exec(new String[]{"su", "-c", "getprop " + key});
+                        boolean readExited = reader.waitFor(5, TimeUnit.SECONDS);
+                        if (!readExited) reader.destroyForcibly();
+                        String actual = null;
+                        if (readExited) {
+                            try (BufferedReader output = new BufferedReader(new InputStreamReader(reader.getInputStream()))) {
+                                actual = output.readLine();
+                            }
+                        }
+                        success = readExited && reader.exitValue() == 0
+                            && expected.equalsIgnoreCase(actual == null ? "" : actual.trim());
+                    }
+                } catch (Throwable ignored) {
+                    success = false;
+                } finally {
+                    if (setter != null) setter.destroy();
+                    if (reader != null) reader.destroy();
+                }
+            }
+            if (callback != null) callback.onComplete(success);
         });
     }
 
     public static String readCpuStatLine() {
         if (!isRootAvailable()) return null;
-        Process p = null;
-        try {
-            p = Runtime.getRuntime().exec(new String[]{"su", "-c", "head -n 1 /proc/stat 2>/dev/null || cat /proc/stat"});
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    line = line.trim();
-                    if (line.startsWith("cpu ")) {
-                        return line;
-                    }
-                }
-            }
-        } catch (Throwable ignored) {
-        } finally {
-            if (p != null) {
-                try {
-                    p.destroy();
-                } catch (Throwable ignored) {}
-            }
+        String output = runCommand("head -n 1 /proc/stat 2>/dev/null || cat /proc/stat");
+        for (String line : output.split("\\R")) {
+            line = line.trim();
+            if (line.startsWith("cpu ")) return line;
         }
         return null;
     }
@@ -173,7 +208,6 @@ public final class RootTool {
         List<ProcessInfo> list = new ArrayList<>();
         if (!isRootAvailable()) return list;
 
-        Process p = null;
         try {
             String script = "if ps -A -o PID,RSS,ARGS >/dev/null 2>&1; then " +
                     "ps -A -o PID,RSS,ARGS | while read -r pid rss cmd; do " +
@@ -202,10 +236,8 @@ public final class RootTool {
                     "echo \"${d##*/}:$c:$adj:$rss\"; " +
                     "done; " +
                     "fi";
-            p = Runtime.getRuntime().exec(new String[]{"su", "-c", script});
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
+            String output = runCommand(script);
+            for (String line : output.split("\\R")) {
                     String[] parts = line.split(":", 4);
                     if (parts.length >= 3) {
                         try {
@@ -247,15 +279,8 @@ public final class RootTool {
                             }
                         } catch (Throwable ignored) {}
                     }
-                }
             }
         } catch (Throwable ignored) {
-        } finally {
-            if (p != null) {
-                try {
-                    p.destroy();
-                } catch (Throwable ignored) {}
-            }
         }
         return list;
     }
@@ -266,7 +291,7 @@ public final class RootTool {
                 Process p = null;
                 try {
                     p = Runtime.getRuntime().exec(new String[]{"su", "-c", "rm -rf /data/system/AppRetention 2>/dev/null"});
-                    p.waitFor();
+                    if (!p.waitFor(8, TimeUnit.SECONDS)) p.destroyForcibly();
                 } catch (Throwable ignored) {
                 } finally {
                     if (p != null) {
@@ -297,7 +322,7 @@ public final class RootTool {
                     }
                     if (!cmd.isEmpty()) {
                         p = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
-                        p.waitFor();
+                        if (!p.waitFor(8, TimeUnit.SECONDS)) p.destroyForcibly();
                     }
                 } catch (Throwable ignored) {
                 } finally {
@@ -318,21 +343,35 @@ public final class RootTool {
     public static String runCommand(String cmd) {
         StringBuilder sb = new StringBuilder();
         Process p = null;
+        ExecutorService outputReader = Executors.newSingleThreadExecutor();
         try {
-            if (isRootAvailable()) {
-                p = Runtime.getRuntime().exec(new String[]{"su", "-c", cmd});
-            } else {
-                p = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
-            }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line).append("\n");
+            ProcessBuilder builder = isRootAvailable()
+                ? new ProcessBuilder("su", "-c", cmd)
+                : new ProcessBuilder("sh", "-c", cmd);
+            builder.redirectErrorStream(true);
+            p = builder.start();
+            Process running = p;
+            Future<?> readerTask = outputReader.submit(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(running.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                } catch (Throwable ignored) {
                 }
+            });
+
+            if (!p.waitFor(8, TimeUnit.SECONDS)) {
+                p.destroyForcibly();
             }
-            p.waitFor();
+            try {
+                readerTask.get(2, TimeUnit.SECONDS);
+            } catch (Throwable ignored) {
+                readerTask.cancel(true);
+            }
         } catch (Throwable ignored) {
         } finally {
+            outputReader.shutdownNow();
             if (p != null) {
                 try {
                     p.destroy();

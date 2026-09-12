@@ -64,7 +64,7 @@
                         android:id="@+id/tvAppVersion"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="v5.2.4(20260906)"
+                        android:text="v5.2.5(20260912)"
                         android:textColor="@color/text_muted"
                         android:textSize="11.5sp"
                         android:includeFontPadding="false"

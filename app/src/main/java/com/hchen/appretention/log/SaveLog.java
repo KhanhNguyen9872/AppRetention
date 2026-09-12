@@ -233,10 +233,9 @@ public class SaveLog {
         tag = redirectFileName(tag);
         String formatLog = formatLog(log);
 
-        // If in system_server (targetPackage is "android"), write directly!
+        // Never block system_server hook threads on app-private file I/O.
+        // The Xposed/logcat sink remains available for diagnostics.
         if ("android".equals(HCData.getTargetPackageName())) {
-            openFile(tag, getRandomNumber());
-            writeFile(tag, formatLog);
             return;
         }
 

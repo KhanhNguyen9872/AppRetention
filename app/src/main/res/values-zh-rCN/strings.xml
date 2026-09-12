@@ -30,6 +30,10 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="nav_settings">设置</string>
     <string name="title_settings">系统与保活设置</string>
     <string name="desc_settings">管理后台行为、系统钩子配置与进程限制策略</string>
+    <string name="title_fork_extensions">启用分支系统扩展</string>
+    <string name="desc_fork_extensions">分支专用钩子的总安全开关。关闭时保持上游行为；更改后需要重启。</string>
+    <string name="toast_reboot_required">设置已验证，请重启以应用钩子注册变更。</string>
+    <string name="toast_setting_write_failed">无法验证系统设置，已恢复之前的值。</string>
     <string name="title_immediate_kill">退出屏幕立即结束后台</string>
     <string name="desc_immediate_kill">针对限制名单中的应用，在离开返回桌面或熄屏时立即终结后台进程（无需等待划掉多任务）</string>
     <string name="mode_keep_alive">保活列表</string>
@@ -105,9 +109,12 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="format_cpu_subtext">%1$s • %2$d 核心</string>
     <string name="format_cpu_subtext_nocores">%s</string>
     <string name="format_cpu_root_required">%1$s • %2$d 核心</string>
-    <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
-    <string name="format_storage_subtext">剩余: %.1f GB</string>
-    <string name="format_storage_subtext_type">剩余: %1$.1f GB • %2$s</string>
+    <string name="format_storage_details">%1$.1f GiB / %2$.1f GiB (%3$d%%)</string>
+    <string name="format_storage_subtext">剩余: %.1f GiB</string>
+    <string name="format_storage_subtext_type">剩余: %1$.1f GiB • %2$s</string>
+    <string name="format_storage_subtext_physical">剩余: %1$.1f GiB • 物理容量: %2$.0f GB</string>
+    <string name="format_storage_subtext_physical_type">剩余: %1$.1f GiB • 物理容量: %2$.0f GB • %3$s</string>
+    <string name="status_fork_extensions_disabled">安全基线：分支专用系统钩子已关闭</string>
     <string name="label_gpu_display">图形 &amp; 屏幕</string>
     <string name="label_battery_power">电池 &amp; 温度</string>
     <string name="format_battery_details">%1$d%% • %2$.1f°C</string>

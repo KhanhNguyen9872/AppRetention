@@ -33,11 +33,19 @@ public final class AppHibernationOpt {
         for (Method method : serviceClass.getDeclaredMethods()) {
             String name = method.getName();
             Class<?> retType = method.getReturnType();
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            boolean packageFirst = parameterTypes.length > 0 && parameterTypes[0] == String.class;
+            boolean booleanLast = parameterTypes.length > 0
+                && (parameterTypes[parameterTypes.length - 1] == boolean.class
+                || parameterTypes[parameterTypes.length - 1] == Boolean.class);
 
-            if ("setHibernatingGlobally".equals(name) || "setHibernatingForUser".equals(name)) {
+            if (packageFirst && booleanLast && (retType == void.class || retType == boolean.class
+                || retType == Boolean.class) && ("setHibernatingGlobally".equals(name)
+                || "setHibernatingForUser".equals(name))) {
                 hook(method, new IHook() {
                     @Override
                     public void before() {
+                        if (!isEnabled()) return;
                         Object[] args = getArgs();
                         if (args != null && args.length > 0) {
                             Object pkgArg = getArg(0);
@@ -52,24 +60,18 @@ public final class AppHibernationOpt {
                                     returnNull();
                                 } else if (retType == boolean.class || retType == Boolean.class) {
                                     setResult(false);
-                                } else {
-                                    returnNull();
                                 }
                             }
                         }
                     }
                 });
-            } else if ("isHibernatingGlobally".equals(name) || "isHibernatingForUser".equals(name)) {
+            } else if (packageFirst && (retType == boolean.class || retType == Boolean.class)
+                && ("isHibernatingGlobally".equals(name) || "isHibernatingForUser".equals(name))) {
                 hook(method, new IHook() {
                     @Override
                     public void before() {
-                        if (retType == boolean.class || retType == Boolean.class) {
-                            setResult(false);
-                        } else if (retType == int.class || retType == Integer.class) {
-                            setResult(0);
-                        } else {
-                            returnNull();
-                        }
+                        if (!isEnabled()) return;
+                        setResult(false);
                     }
                 });
             }
@@ -79,6 +81,7 @@ public final class AppHibernationOpt {
     }
 
     private static boolean isEnabled() {
-        return SystemPropTool.getProp("persist.hchen.hibernation.opt.enable", true);
+        return ForkFeatureGate.isEnabled()
+            && SystemPropTool.getProp("persist.hchen.hibernation.opt.enable", false);
     }
 }

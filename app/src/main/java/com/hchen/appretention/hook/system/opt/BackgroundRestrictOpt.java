@@ -11,10 +11,10 @@ import static com.hchen.hooktool.core.CoreTool.hook;
 import static com.hchen.hooktool.core.CoreTool.hookMethod;
 
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
-import android.os.Binder;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.hchen.appretention.data.field.SystemField;
 import com.hchen.appretention.log.XposedLog;
@@ -50,19 +50,21 @@ public final class BackgroundRestrictOpt {
 
     public static boolean shouldTerminateOnTaskRemoved(String packageName) {
         if (packageName == null || packageName.isEmpty()) return false;
-        return isRestricted(packageName) || PACKAGE_APPRETENTION.equals(packageName);
+        return ForkFeatureGate.isEnabled() && isRestricted(packageName);
     }
 
     private static long lastCheckTime = 0;
     private static HashSet<String> cachedRestrictedSet = new HashSet<>();
 
     public static void init() {
+        if (!ForkFeatureGate.isEnabled()) {
+            XposedLog.logD(TAG, "Background restriction hooks disabled by master safety gate.");
+            return;
+        }
         hookRecentTasksRemove();
         hookBroadcastWakeupSuppression();
         hookForegroundActivitiesChanged();
-        hookActivityRecordLifecycle();
-        hookActivityTaskManagerServiceActivityStopped();
-        XposedLog.logI(TAG, "BackgroundRestrictOpt initialized successfully with all lifecycle hooks!");
+        XposedLog.logI(TAG, "BackgroundRestrictOpt initialized with bounded lifecycle hooks.");
     }
 
     public static synchronized HashSet<String> getRestrictedPackages() {
@@ -109,10 +111,12 @@ public final class BackgroundRestrictOpt {
 
     public static boolean isRestricted(String packageName) {
         if (packageName == null || packageName.isEmpty()) return false;
+        if (!ForkFeatureGate.isEnabled()) return false;
         return getRestrictedPackages().contains(packageName);
     }
 
     public static boolean isImmediateKillEnabled() {
+        if (!ForkFeatureGate.isEnabled()) return false;
         if (SystemPropTool.getProp(PROP_IMMEDIATE_KILL, false)) return true;
         try {
             File f = new File(IMMEDIATE_KILL_FILE_PATH);
@@ -155,79 +159,6 @@ public final class BackgroundRestrictOpt {
                 XposedLog.logE(TAG, "Failed to hook RecentTasks.remove(Task)", t);
             }
         }
-
-        Class<?> taskClass = findClassIfExists(Task);
-        if (taskClass != null) {
-            try {
-                for (Method m : taskClass.getDeclaredMethods()) {
-                    if (m.getName().startsWith("remove")) {
-                        hook(m, new IHook() {
-                            @Override
-                            public void before() {
-                                Object taskObj = getThisObject();
-                                String pkg = extractPackageNameFromTask(taskObj);
-                                if (shouldTerminateOnTaskRemoved(pkg)) {
-                                    int pid = extractPidFromTask(taskObj);
-                                    XposedLog.logI(TAG, "Task removed via Task." + m.getName() + ": " + pkg + ", pid=" + pid);
-                                    terminatePackage(pkg, pid, "task_removed");
-                                }
-                            }
-                        });
-                    }
-                }
-                XposedLog.logD(TAG, "Hooked Task remove methods successfully.");
-            } catch (Throwable t) {
-                XposedLog.logE(TAG, "Failed to hook Task remove methods", t);
-            }
-        }
-
-        Class<?> atmsClass = findClassIfExists("com.android.server.wm.ActivityTaskManagerService");
-        if (atmsClass != null) {
-            try {
-                for (Method m : atmsClass.getDeclaredMethods()) {
-                    if ("removeTask".equals(m.getName())) {
-                        hook(m, new IHook() {
-                            @Override
-                            public void before() {
-                                Object[] args = getArgs();
-                                if (args != null && args.length >= 1 && args[0] instanceof Integer) {
-                                    int taskId = (Integer) args[0];
-                                    try {
-                                        Object rwc = getField(getThisObject(), "mRootWindowContainer");
-                                        if (rwc != null) {
-                                            Object taskObj = null;
-                                            for (Method atm : rwc.getClass().getMethods()) {
-                                                if ("anyTaskForId".equals(atm.getName())) {
-                                                    try {
-                                                        if (atm.getParameterTypes().length == 1) {
-                                                            taskObj = atm.invoke(rwc, taskId);
-                                                        } else if (atm.getParameterTypes().length == 2) {
-                                                            taskObj = atm.invoke(rwc, taskId, 0);
-                                                        }
-                                                        if (taskObj != null) break;
-                                                    } catch (Throwable ignored) {}
-                                                }
-                                            }
-                                            if (taskObj != null) {
-                                                String pkg = extractPackageNameFromTask(taskObj);
-                                                if (shouldTerminateOnTaskRemoved(pkg)) {
-                                                    int pid = extractPidFromTask(taskObj);
-                                                    XposedLog.logI(TAG, "Task removed via ATMS.removeTask: " + pkg + ", pid=" + pid);
-                                                    terminatePackage(pkg, pid, "atms_remove_task");
-                                                }
-                                            }
-                                        }
-                                    } catch (Throwable ignored) {}
-                                }
-                            }
-                        });
-                    }
-                }
-                XposedLog.logD(TAG, "Hooked ActivityTaskManagerService.removeTask successfully.");
-            } catch (Throwable t) {
-                XposedLog.logE(TAG, "Failed to hook ATMS.removeTask", t);
-            }
-        }
     }
 
     /**
@@ -240,10 +171,14 @@ public final class BackgroundRestrictOpt {
 
         try {
             for (Method m : amsClass.getDeclaredMethods()) {
-                if ("dispatchForegroundActivitiesChanged".equals(m.getName())) {
+                Class<?>[] params = m.getParameterTypes();
+                if ("dispatchForegroundActivitiesChanged".equals(m.getName())
+                    && params.length == 3 && params[0] == int.class
+                    && params[1] == int.class && params[2] == boolean.class) {
                     hook(m, new IHook() {
                         @Override
                         public void before() {
+                            if (!ForkFeatureGate.isEnabled()) return;
                             try {
                                 Object[] args = getArgs();
                                 if (args != null && args.length >= 3) {
@@ -531,74 +466,16 @@ public final class BackgroundRestrictOpt {
     }
 
     public static void terminatePackage(String packageName, int pid, String reason) {
-        if (packageName == null || packageName.isEmpty()) return;
-        XposedLog.logI(TAG, "Terminating package [" + packageName + "], pid: " + pid + ", reason: " + reason);
-
-        // Fallback: If pid is 0, find PID from /proc cmdline
-        if (pid <= 0) {
+        if (!ForkFeatureGate.isEnabled() || packageName == null || packageName.isEmpty() || pid <= 0) return;
+        final int targetPid = pid;
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (!ForkFeatureGate.isEnabled() || !isRestricted(packageName)) return;
             try {
-                File procDir = new File("/proc");
-                File[] files = procDir.listFiles();
-                if (files != null) {
-                    for (File f : files) {
-                        String name = f.getName();
-                        if (!name.isEmpty() && Character.isDigit(name.charAt(0))) {
-                            File cmdline = new File(f, "cmdline");
-                            if (cmdline.exists() && cmdline.canRead()) {
-                                try (BufferedReader br = new BufferedReader(new FileReader(cmdline))) {
-                                    String cmd = br.readLine();
-                                    if (cmd != null && (cmd.equals(packageName) || cmd.startsWith(packageName + ":") || cmd.startsWith(packageName + "\0"))) {
-                                        pid = Integer.parseInt(name);
-                                        break;
-                                    }
-                                } catch (Throwable ignored) {}
-                            }
-                        }
-                    }
-                }
-            } catch (Throwable ignored) {}
-        }
-
-        // 1. Instant SIGKILL to the process PID
-        if (pid > 0) {
-            try {
-                android.os.Process.killProcess(pid);
-                android.os.Process.sendSignal(pid, 9);
-                XposedLog.logD(TAG, "Sent SIGKILL to pid: " + pid);
+                android.os.Process.killProcess(targetPid);
+                XposedLog.logD(TAG, "Killed restricted pid=" + targetPid + ", reason=" + reason);
             } catch (Throwable t) {
-                XposedLog.logW(TAG, "SIGKILL failed for pid " + pid + ": " + t.getMessage());
+                XposedLog.logW(TAG, "Failed to kill restricted pid=" + targetPid + ": " + t.getMessage());
             }
-        }
-
-        // 2. Force-stop via ActivityManagerService with elevated identity
-        long ident = Binder.clearCallingIdentity();
-        try {
-            Class<?> amClass = Class.forName("android.app.ActivityManager");
-            Method getService = amClass.getMethod("getService");
-            Object amService = getService.invoke(null);
-            if (amService != null) {
-                Method forceStop = amService.getClass().getMethod("forceStopPackage", String.class, int.class);
-                try {
-                    forceStop.invoke(amService, packageName, 0); // user 0 (Primary)
-                } catch (Throwable t1) {
-                    XposedLog.logW(TAG, "forceStopPackage user 0: " + t1.getMessage());
-                }
-                try {
-                    forceStop.invoke(amService, packageName, -1); // USER_ALL
-                } catch (Throwable ignored) {}
-                XposedLog.logD(TAG, "Successfully invoked forceStopPackage for " + packageName);
-            }
-        } catch (Throwable t) {
-            XposedLog.logW(TAG, "Failed forceStopPackage via ActivityManager: " + t.getMessage());
-        } finally {
-            Binder.restoreCallingIdentity(ident);
-        }
-
-        // 3. Fallback via runtime command (am force-stop and pkill -9)
-        try {
-            Runtime.getRuntime().exec(new String[]{"am", "force-stop", packageName});
-            Runtime.getRuntime().exec(new String[]{"pkill", "-9", "-f", packageName});
-        } catch (Throwable ignored) {
-        }
+        });
     }
 }

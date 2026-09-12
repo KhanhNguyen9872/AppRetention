@@ -68,8 +68,6 @@ import com.hchen.appretention.hook.system.opt.AppHibernationOpt;
 import com.hchen.appretention.hook.system.opt.AutoStartOpt;
 import com.hchen.appretention.hook.system.opt.KillShieldOpt;
 import com.hchen.appretention.hook.system.opt.DeviceIdleOpt;
-import com.hchen.appretention.hook.nubia.NubiaPolicy;
-import com.hchen.hooktool.utils.DeviceTool;
 import com.hchen.collect.HookEntrance;
 import com.hchen.hooktool.HCBase;
 import com.hchen.hooktool.hook.IHook;
@@ -92,9 +90,6 @@ public class AndroidU extends HCBase {
         DeviceIdleOpt.init();
         AppHibernationOpt.init();
         AutoStartOpt.init();
-        if (DeviceTool.isRightRom("nubia", "zte", "redmagic")) {
-            NubiaPolicy.manualInit();
-        }
 
         // ----------- ProcessList ----------------------
         /*

@@ -1,10 +1,8 @@
 package com.hchen.appretention.hook.system.opt;
 
 import static com.hchen.appretention.data.path.SystemClass.ActivityManagerService;
-import static com.hchen.appretention.data.path.SystemClass.ProcessList;
 import static com.hchen.appretention.data.path.SystemClass.ProcessRecord;
 import static com.hchen.hooktool.core.CoreTool.findClassIfExists;
-import static com.hchen.hooktool.core.CoreTool.findMethodIfExists;
 import static com.hchen.hooktool.core.CoreTool.getField;
 import static com.hchen.hooktool.core.CoreTool.hook;
 
@@ -36,14 +34,12 @@ public final class KillShieldOpt {
         }
 
         hookProcessRecordKill();
-        hookProcessListKill();
-        hookBroadcastQueueTimeout();
-
         XposedLog.logI(TAG, "KillShield initialized successfully!");
     }
 
     private static boolean isEnabled() {
-        return SystemPropTool.getProp("persist.hchen.killshield.enable", true);
+        return ForkFeatureGate.isEnabled()
+            && SystemPropTool.getProp("persist.hchen.killshield.enable", true);
     }
 
     private static boolean isAutomatedKillReason(String reason) {
@@ -106,6 +102,7 @@ public final class KillShieldOpt {
                     hook(method, new IHook() {
                         @Override
                         public void before() {
+                            if (!isEnabled()) return;
                             Object reasonObj = getArg(0);
                             String reason = reasonObj != null ? reasonObj.toString() : "";
                             Object thisProcess = thisObject();
@@ -130,38 +127,4 @@ public final class KillShieldOpt {
         }
     }
 
-    private static void hookProcessListKill() {
-        Method killProcessQuietMethod = findMethodIfExists(ProcessList, "killProcessQuiet", int.class, String.class);
-        if (killProcessQuietMethod != null) {
-            hook(killProcessQuietMethod, new IHook() {
-                @Override
-                public void before() {
-                    Object reasonObj = getArg(1);
-                    String reason = reasonObj != null ? reasonObj.toString() : "";
-                    if (isAutomatedKillReason(reason)) {
-                        int pid = (int) getArg(0);
-                        XposedLog.logI(TAG, "Blocked killProcessQuiet pid=" + pid + ", reason: " + reason);
-                        returnNull();
-                    }
-                }
-            });
-        }
-    }
-
-    private static void hookBroadcastQueueTimeout() {
-        Class<?> bqModern = findClassIfExists("com.android.server.am.BroadcastQueueModernImpl");
-        if (bqModern != null) {
-            for (Method m : bqModern.getDeclaredMethods()) {
-                if ("deliveryTimeoutLocked".equals(m.getName())) {
-                    hook(m, new IHook() {
-                        @Override
-                        public void before() {
-                            XposedLog.logD(TAG, "Suppressed BroadcastQueueModernImpl deliveryTimeoutLocked");
-                            returnNull();
-                        }
-                    });
-                }
-            }
-        }
-    }
 }

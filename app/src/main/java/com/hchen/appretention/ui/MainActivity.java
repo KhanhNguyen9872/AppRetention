@@ -60,6 +60,7 @@ import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.hchen.appretention.BuildConfig;
 import com.hchen.appretention.R;
+import com.hchen.appretention.hook.system.opt.ForkFeatureGate;
 import com.hchen.hooktool.utils.SystemPropTool;
 
 import java.io.BufferedReader;
@@ -84,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_NUBIA = "persist.hchen.nubia.opt.enable";
     private static final String KEY_HIBERNATION = "persist.hchen.hibernation.opt.enable";
     private static final String KEY_AUTOSTART = "persist.hchen.autostart.opt.enable";
+    private static final String KEY_FORK_EXTENSIONS = ForkFeatureGate.PROP_ENABLE;
 
     // Memory-leak-free Caches
     private static final LruCache<String, Drawable.ConstantState> sIconCache = new LruCache<>(150);
@@ -169,6 +171,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvProcessCount;
     private View layoutProcessesLoading;
     private final java.util.concurrent.atomic.AtomicBoolean isScanningProcesses = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean isRefreshingHardware = new java.util.concurrent.atomic.AtomicBoolean(false);
     private RecyclerView rvProcesses;
     private ProcessAdapter processAdapter;
     private final List<ProcessItem> processList = new ArrayList<>();
@@ -195,6 +198,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Tab 3: Settings UI elements
     private MaterialSwitch switchImmediateKill;
+    private MaterialSwitch switchForkExtensions;
     private MaterialSwitch switchTieredAdj;
     private MaterialSwitch switchKillShield;
     private MaterialSwitch switchDoze;
@@ -210,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnCopyLog;
     private MaterialButton btnClearLog;
 
-    // 3-second recurring auto-refresh handler for Dashboard (active only when Dashboard is visible)
+    // 5-second recurring auto-refresh handler for Dashboard (active only when Dashboard is visible)
     private final Handler mTimerHandler = new Handler(Looper.getMainLooper());
     private final Runnable mPeriodicRefreshRunnable = new Runnable() {
         @Override
@@ -219,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                 updateHardwareStats();
                 refreshRunningProcesses();
             }
-            mTimerHandler.postDelayed(this, 3000);
+            mTimerHandler.postDelayed(this, 5000);
         }
     };
 
@@ -496,6 +500,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // --- Tab 3: Controls Page Initialization ---
+        switchForkExtensions = findViewById(R.id.switchForkExtensions);
         switchTieredAdj = findViewById(R.id.switchTieredAdj);
         switchKillShield = findViewById(R.id.switchKillShield);
         switchDoze = findViewById(R.id.switchDoze);
@@ -586,29 +591,59 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupSwitches() {
         switchImmediateKill = findViewById(R.id.switchImmediateKill);
+        bindSwitch(switchForkExtensions, KEY_FORK_EXTENSIONS, false);
         bindSwitch(switchImmediateKill, KEY_RESTRICT_IMMEDIATE, false);
         bindSwitch(switchTieredAdj, KEY_TIERED_ADJ, true);
         bindSwitch(switchKillShield, KEY_KILL_SHIELD, true);
         bindSwitch(switchDoze, KEY_DOZE, true);
-        bindSwitch(switchNubia, KEY_NUBIA, true);
-        bindSwitch(switchHibernation, KEY_HIBERNATION, true);
-        bindSwitch(switchAutoStart, KEY_AUTOSTART, true);
+        bindSwitch(switchNubia, KEY_NUBIA, false);
+        bindSwitch(switchHibernation, KEY_HIBERNATION, false);
+        bindSwitch(switchAutoStart, KEY_AUTOSTART, false);
+        updateForkExtensionControls(switchForkExtensions != null && switchForkExtensions.isChecked());
     }
 
     private void bindSwitch(MaterialSwitch sw, String key, boolean defValue) {
         if (sw == null) return;
-        boolean val = prefs.getBoolean(key, SystemPropTool.getProp(key, defValue));
+        String propertyValue = SystemPropTool.getProp(key, "");
+        boolean val = propertyValue.isEmpty() ? defValue : Boolean.parseBoolean(propertyValue);
+        prefs.edit().putBoolean(key, val).apply();
         sw.setChecked(val);
+        java.util.concurrent.atomic.AtomicBoolean internalUpdate = new java.util.concurrent.atomic.AtomicBoolean(false);
         sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            prefs.edit().putBoolean(key, isChecked).apply();
-            RootTool.setProp(key, String.valueOf(isChecked));
-            if (KEY_RESTRICT_IMMEDIATE.equals(key)) {
-                syncImmediateKillFile(isChecked);
-                if (isChecked) {
-                    refreshRunningProcesses();
+            if (internalUpdate.get()) return;
+            sw.setEnabled(false);
+            RootTool.setBooleanPropVerified(key, isChecked, success -> runOnUiThread(() -> {
+                internalUpdate.set(true);
+                if (success) {
+                    prefs.edit().putBoolean(key, isChecked).apply();
+                    if (KEY_RESTRICT_IMMEDIATE.equals(key)) {
+                        syncImmediateKillFile(isChecked);
+                        if (isChecked) refreshRunningProcesses();
+                    }
+                    if (KEY_FORK_EXTENSIONS.equals(key)) {
+                        updateForkExtensionControls(isChecked);
+                        Toast.makeText(this, R.string.toast_reboot_required, Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    sw.setChecked(!isChecked);
+                    Toast.makeText(this, R.string.toast_setting_write_failed, Toast.LENGTH_LONG).show();
                 }
-            }
+                internalUpdate.set(false);
+                sw.setEnabled(true);
+            }));
         });
+    }
+
+    private void updateForkExtensionControls(boolean enabled) {
+        MaterialSwitch[] extensionSwitches = new MaterialSwitch[]{
+            switchImmediateKill, switchTieredAdj, switchKillShield, switchDoze,
+            switchNubia, switchHibernation, switchAutoStart
+        };
+        for (MaterialSwitch item : extensionSwitches) {
+            if (item == null) continue;
+            item.setEnabled(enabled);
+            item.setAlpha(enabled ? 1.0f : 0.55f);
+        }
     }
 
     private void checkAndPromptRoot() {
@@ -1105,7 +1140,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateHardwareStats() {
+        if (!isRefreshingHardware.compareAndSet(false, true)) return;
         sWorkerPool.execute(() -> {
+            try {
             // 1. Ultra-fast RAM & ZRAM calculation (direct /proc/meminfo read - 0.1ms)
             long totalRamBytes = 0;
             long availRamBytes = 0;
@@ -1175,6 +1212,8 @@ public class MainActivity extends AppCompatActivity {
             double totalStorageGb = totalStorageBytes / (1024.0 * 1024.0 * 1024.0);
             double freeStorageGb = freeStorageBytes / (1024.0 * 1024.0 * 1024.0);
             String storageType = HardwareInfo.getStorageType();
+            long physicalStorageBytes = HardwareInfo.getPhysicalStorageBytes();
+            double physicalStorageGb = physicalStorageBytes / 1_000_000_000.0;
 
             // 4. GPU & Display Info
             String gpuModel = HardwareInfo.getGpuModel();
@@ -1226,7 +1265,13 @@ public class MainActivity extends AppCompatActivity {
                 // Storage
                 if (tvStorageDetails != null) tvStorageDetails.setText(getString(R.string.format_storage_details, usedStorageGb, totalStorageGb, storagePercent));
                 if (tvStorageSubtext != null) {
-                    if (storageType != null && !storageType.isEmpty()) {
+                    if (physicalStorageBytes > 0 && storageType != null && !storageType.isEmpty()) {
+                        tvStorageSubtext.setText(getString(R.string.format_storage_subtext_physical_type,
+                            freeStorageGb, physicalStorageGb, storageType));
+                    } else if (physicalStorageBytes > 0) {
+                        tvStorageSubtext.setText(getString(R.string.format_storage_subtext_physical,
+                            freeStorageGb, physicalStorageGb));
+                    } else if (storageType != null && !storageType.isEmpty()) {
                         tvStorageSubtext.setText(getString(R.string.format_storage_subtext_type, freeStorageGb, storageType));
                     } else {
                         tvStorageSubtext.setText(getString(R.string.format_storage_subtext, freeStorageGb));
@@ -1317,8 +1362,15 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                if (tvShieldStatus != null) tvShieldStatus.setText(getString(R.string.status_killshield_active));
+                if (tvShieldStatus != null) {
+                    tvShieldStatus.setText(ForkFeatureGate.isEnabled()
+                        ? R.string.status_killshield_active
+                        : R.string.status_fork_extensions_disabled);
+                }
             });
+            } finally {
+                isRefreshingHardware.set(false);
+            }
         });
     }
 

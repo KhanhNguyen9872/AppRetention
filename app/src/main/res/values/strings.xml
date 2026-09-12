@@ -12,6 +12,7 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="status_root_active">Scope: android (system_server) • Root: Active (KernelSU/Magisk/APatch)</string>
     <string name="status_root_limited">Scope: android (system_server) • Root: Not Granted (Limited Mode)</string>
     <string name="status_killshield_active">KillShield: Active &amp; Shielding Background Kills</string>
+    <string name="status_fork_extensions_disabled">Safe baseline: fork-only system hooks disabled</string>
     <string name="toast_root_active">Root: Active with full Kernel &amp; System access</string>
 
     <!-- Hardware Monitor Card -->
@@ -27,9 +28,11 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="format_cpu_subtext_nocores">%s</string>
     <string name="format_cpu_root_required">%1$s • %2$d Cores</string>
     <string name="label_internal_storage">Internal Storage</string>
-    <string name="format_storage_details">%1$.1f GB / %2$.1f GB (%3$d%%)</string>
-    <string name="format_storage_subtext">Free: %.1f GB</string>
-    <string name="format_storage_subtext_type">Free: %1$.1f GB • %2$s</string>
+    <string name="format_storage_details">%1$.1f GiB / %2$.1f GiB (%3$d%%)</string>
+    <string name="format_storage_subtext">Free: %.1f GiB</string>
+    <string name="format_storage_subtext_type">Free: %1$.1f GiB • %2$s</string>
+    <string name="format_storage_subtext_physical">Free: %1$.1f GiB • Physical: %2$.0f GB</string>
+    <string name="format_storage_subtext_physical_type">Free: %1$.1f GiB • Physical: %2$.0f GB • %3$s</string>
 
     <!-- Keep-Alive List Card -->
     <string name="title_keep_alive_list">Keep-Alive List</string>
@@ -40,6 +43,10 @@ by: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Retention Controls Card -->
     <string name="title_retention_controls">Retention Controls</string>
+    <string name="title_fork_extensions">Enable fork system extensions</string>
+    <string name="desc_fork_extensions">Master safety gate for fork-only hooks. Disabled keeps upstream behavior. A reboot is required after changing this setting.</string>
+    <string name="toast_reboot_required">Setting verified. Reboot to apply hook registration changes.</string>
+    <string name="toast_setting_write_failed">Could not verify the system setting. The previous value was restored.</string>
     <string name="title_tiered_adj">Tiered Retention Clamping</string>
     <string name="desc_tiered_adj">Bumps top background apps to Perceptible tier (ADJ 200-245) for persistent background retention.</string>
     <string name="title_killshield">KillShield Protection</string>
@@ -65,7 +72,7 @@ by: HChenX &amp; KhanhNguyen9872</string>
 
     <!-- Root Permission Explanation Dialog -->
     <string name="dialog_root_title">Root Permission Not Granted</string>
-    <string name="dialog_root_message">AppRetention is still actively functioning as an Xposed Module in System Framework (Keep-Alive locking and kill prevention remain fully effective).\n\nHowever, Root access is required to:\n• Accurately read 100% hardware metrics (kernel CPU load, RAM meminfo, storage df).\n• Scan running background processes &amp; OOM Score ADJ in real time.\n• Synchronize system persist properties immediately.\n\nYou can grant Root permission in Magisk, KernelSU, or APatch anytime.</string>
+    <string name="dialog_root_message" formatted="false">AppRetention is still actively functioning as an Xposed Module in System Framework (Keep-Alive locking and kill prevention remain fully effective).\n\nHowever, Root access is required to:\n• Accurately read 100% hardware metrics (kernel CPU load, RAM meminfo, storage df).\n• Scan running background processes &amp; OOM Score ADJ in real time.\n• Synchronize system persist properties immediately.\n\nYou can grant Root permission in Magisk, KernelSU, or APatch anytime.</string>
     <string name="btn_dialog_retry_root">Retry / Grant</string>
     <string name="btn_dialog_continue_limited">Continue (Limited Mode)</string>
 

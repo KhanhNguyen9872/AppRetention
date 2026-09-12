@@ -27,3 +27,4 @@ local.properties
 
 bin/
 *.apk
+/artifacts/

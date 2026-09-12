@@ -60,6 +60,9 @@ public final class OomLevelsOpt {
     }
 
     private static int getDiscountFactor() {
+        if (!ForkFeatureGate.isEnabled()) {
+            return OOM_MIN_FREE_DISCOUNT;
+        }
         int propDiscount = com.hchen.hooktool.utils.SystemPropTool.getProp("persist.hchen.oom.discount", 0);
         if (propDiscount > 0) {
             return propDiscount;

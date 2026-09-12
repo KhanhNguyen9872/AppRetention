@@ -4,6 +4,7 @@ import static com.hchen.hooktool.core.CoreTool.findClassIfExists;
 import static com.hchen.hooktool.core.CoreTool.hook;
 
 import com.hchen.appretention.hook.system.opt.BackgroundRestrictOpt;
+import com.hchen.appretention.hook.system.opt.ForkFeatureGate;
 import com.hchen.appretention.log.XposedLog;
 import com.hchen.collect.HookEntrance;
 import com.hchen.hooktool.HCBase;
@@ -27,7 +28,8 @@ public class NubiaPolicy extends HCBase {
 
     @Override
     public boolean isEnabled() {
-        return SystemPropTool.getProp("persist.hchen.nubia.opt.enable", true);
+        return ForkFeatureGate.isEnabled()
+            && SystemPropTool.getProp("persist.hchen.nubia.opt.enable", false);
     }
 
     @Override
@@ -42,10 +44,6 @@ public class NubiaPolicy extends HCBase {
         hookNubiaFreezer();
 
         XposedLog.logI(TAG, "NubiaPolicy initialized on " + DeviceTool.getDeviceFingerprint());
-    }
-
-    public static void manualInit() {
-        new NubiaPolicy().init();
     }
 
     private static boolean isRestrictedTarget(Object[] args) {
@@ -69,9 +67,24 @@ public class NubiaPolicy extends HCBase {
             hook.setResult(false);
         } else if (retType == int.class || retType == Integer.class) {
             hook.setResult(0);
-        } else {
-            hook.returnNull();
         }
+    }
+
+    private static boolean hasPackageArgument(Method method) {
+        for (Class<?> type : method.getParameterTypes()) {
+            if (type == String.class) return true;
+        }
+        return false;
+    }
+
+    private static boolean hasSupportedReturnType(Method method) {
+        Class<?> type = method.getReturnType();
+        return type == void.class || type == boolean.class || type == Boolean.class
+            || type == int.class || type == Integer.class;
+    }
+
+    private static boolean isSafeCandidate(Method method) {
+        return hasPackageArgument(method) && hasSupportedReturnType(method);
     }
 
     private void hookNubiaProcessManager() {
@@ -87,10 +100,12 @@ public class NubiaPolicy extends HCBase {
 
             for (Method method : clazz.getDeclaredMethods()) {
                 String name = method.getName().toLowerCase();
-                if (name.contains("clean") || name.contains("kill") || name.contains("autoclean") || name.contains("purge")) {
+                if (isSafeCandidate(method) && (name.contains("clean") || name.contains("kill")
+                    || name.contains("autoclean") || name.contains("purge"))) {
                     hook(method, new IHook() {
                         @Override
                         public void before() {
+                            if (!isEnabled()) return;
                             if (isRestrictedTarget(getArgs())) {
                                 return; // Allow Nubia to kill/clean restricted apps
                             }
@@ -116,10 +131,12 @@ public class NubiaPolicy extends HCBase {
 
             for (Method method : clazz.getDeclaredMethods()) {
                 String name = method.getName().toLowerCase();
-                if (name.contains("kill") || name.contains("clean") || name.contains("terminate")) {
+                if (isSafeCandidate(method) && (name.contains("kill") || name.contains("clean")
+                    || name.contains("terminate"))) {
                     hook(method, new IHook() {
                         @Override
                         public void before() {
+                            if (!isEnabled()) return;
                             if (isRestrictedTarget(getArgs())) {
                                 return; // Allow Nubia to terminate restricted apps
                             }
@@ -144,10 +161,11 @@ public class NubiaPolicy extends HCBase {
 
             for (Method method : clazz.getDeclaredMethods()) {
                 String name = method.getName().toLowerCase();
-                if (name.contains("killfrozen") || name.contains("timeoutkill")) {
+                if (isSafeCandidate(method) && (name.contains("killfrozen") || name.contains("timeoutkill"))) {
                     hook(method, new IHook() {
                         @Override
                         public void before() {
+                            if (!isEnabled()) return;
                             if (isRestrictedTarget(getArgs())) {
                                 return; // Allow Nubia to kill frozen restricted apps
                             }
