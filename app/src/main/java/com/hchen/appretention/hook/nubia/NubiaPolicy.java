@@ -29,7 +29,7 @@ public class NubiaPolicy extends HCBase {
     @Override
     public boolean isEnabled() {
         return ForkFeatureGate.isEnabled()
-            && SystemPropTool.getProp("persist.hchen.nubia.opt.enable", false);
+            && SystemPropTool.getProp("persist.hchen.nubia.opt.enable", true);
     }
 
     @Override

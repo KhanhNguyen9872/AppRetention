@@ -111,6 +111,7 @@ public final class BackgroundRestrictOpt {
 
     public static boolean isRestricted(String packageName) {
         if (packageName == null || packageName.isEmpty()) return false;
+        if (PACKAGE_APPRETENTION.equals(packageName)) return true;
         if (!ForkFeatureGate.isEnabled()) return false;
         return getRestrictedPackages().contains(packageName);
     }

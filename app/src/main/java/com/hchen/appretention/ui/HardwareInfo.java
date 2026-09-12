@@ -14,7 +14,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class HardwareInfo {
 
@@ -24,6 +26,7 @@ public class HardwareInfo {
     private static volatile String sGpuModel = null;
     private static volatile String sCpuMaxClock = null;
     private static volatile String sDisplayInfo = null;
+    private static volatile HardwareDetails sHardwareDetails = null;
     private static volatile Long sPhysicalStorageBytes = null;
     private static volatile boolean sInitialized = false;
 
@@ -90,6 +93,47 @@ public class HardwareInfo {
         SOC_LUT.put("exynos2100", "Exynos 2100");
         SOC_LUT.put("exynos990", "Exynos 990");
 
+        // Additional Qualcomm generations and aliases
+        SOC_LUT.put("sm8735", "Snapdragon 8s Gen 4");
+        SOC_LUT.put("sm7675", "Snapdragon 7+ Gen 3");
+        SOC_LUT.put("sm7635", "Snapdragon 7s Gen 4");
+        SOC_LUT.put("sm7435", "Snapdragon 7s Gen 3");
+        SOC_LUT.put("sm6475", "Snapdragon 6 Gen 3");
+        SOC_LUT.put("sm6450", "Snapdragon 6 Gen 1");
+        SOC_LUT.put("sm4635", "Snapdragon 4s Gen 2");
+        SOC_LUT.put("sm4350", "Snapdragon 480");
+        SOC_LUT.put("sm6225", "Snapdragon 680");
+        SOC_LUT.put("sm6115", "Snapdragon 662");
+        SOC_LUT.put("sdm845", "Snapdragon 845");
+        SOC_LUT.put("sdm710", "Snapdragon 710");
+        SOC_LUT.put("sdm660", "Snapdragon 660");
+        SOC_LUT.put("msm8998", "Snapdragon 835");
+
+        // Additional MediaTek, Tensor, Exynos, Kirin and Unisoc families
+        SOC_LUT.put("mt6993", "Dimensity 9500");
+        SOC_LUT.put("mt6899", "Dimensity 8400");
+        SOC_LUT.put("mt6896", "Dimensity 8200");
+        SOC_LUT.put("mt6878", "Dimensity 7300");
+        SOC_LUT.put("mt6835", "Dimensity 6100/6300 family");
+        SOC_LUT.put("mt6789", "Helio G99");
+        SOC_LUT.put("mt6781", "Helio G96");
+        SOC_LUT.put("mt6785", "Helio G90/G95 family");
+        SOC_LUT.put("gs101", "Google Tensor G1");
+        SOC_LUT.put("gs201", "Google Tensor G2");
+        SOC_LUT.put("exynos2500", "Exynos 2500");
+        SOC_LUT.put("exynos1080", "Exynos 1080");
+        SOC_LUT.put("exynos9820", "Exynos 9820");
+        SOC_LUT.put("exynos9810", "Exynos 9810");
+        SOC_LUT.put("kirin9020", "Kirin 9020");
+        SOC_LUT.put("kirin9000s", "Kirin 9000S");
+        SOC_LUT.put("kirin9000", "Kirin 9000");
+        SOC_LUT.put("kirin990", "Kirin 990");
+        SOC_LUT.put("kirin980", "Kirin 980");
+        SOC_LUT.put("ums9620", "Unisoc T760 family");
+        SOC_LUT.put("ums9230", "Unisoc T606/T612 family");
+        SOC_LUT.put("ums512", "Unisoc T618 family");
+        SOC_LUT.put("sp9863a", "Unisoc SC9863A");
+
         // GPU mapping
         GPU_LUT.put("sm8750", "Adreno 830");
         GPU_LUT.put("sun", "Adreno 830");
@@ -122,6 +166,44 @@ public class HardwareInfo {
         GPU_LUT.put("mt6895", "Mali-G610");
         GPU_LUT.put("zuma", "Mali-G715");
         GPU_LUT.put("zumapro", "Mali-G715");
+        GPU_LUT.put("sm8735", "Adreno 825");
+        GPU_LUT.put("sm7675", "Adreno 732");
+        GPU_LUT.put("sm7635", "Adreno 710");
+        GPU_LUT.put("sm7435", "Adreno 710");
+        GPU_LUT.put("sm6475", "Adreno 710");
+        GPU_LUT.put("sm6450", "Adreno 710");
+        GPU_LUT.put("sm4635", "Adreno 611");
+        GPU_LUT.put("sm4450", "Adreno 613");
+        GPU_LUT.put("sm4350", "Adreno 619");
+        GPU_LUT.put("sm6225", "Adreno 610");
+        GPU_LUT.put("sm6115", "Adreno 610");
+        GPU_LUT.put("sdm845", "Adreno 630");
+        GPU_LUT.put("sdm710", "Adreno 616");
+        GPU_LUT.put("sdm660", "Adreno 512");
+        GPU_LUT.put("msm8998", "Adreno 540");
+        GPU_LUT.put("mt6993", "Arm Immortalis-G1 Ultra");
+        GPU_LUT.put("mt6899", "Mali-G720");
+        GPU_LUT.put("mt6897", "Mali-G615");
+        GPU_LUT.put("mt6896", "Mali-G610");
+        GPU_LUT.put("mt6878", "Mali-G615");
+        GPU_LUT.put("mt6835", "Mali-G57");
+        GPU_LUT.put("mt6789", "Mali-G57 MC2");
+        GPU_LUT.put("mt6781", "Mali-G57 MC2");
+        GPU_LUT.put("gs101", "Mali-G78");
+        GPU_LUT.put("gs201", "Mali-G710");
+        GPU_LUT.put("cloudripper", "Mali-G710");
+        GPU_LUT.put("whitechapel", "Mali-G78");
+        GPU_LUT.put("exynos2500", "Xclipse 950");
+        GPU_LUT.put("exynos2400", "Xclipse 940");
+        GPU_LUT.put("exynos2200", "Xclipse 920");
+        GPU_LUT.put("exynos2100", "Mali-G78");
+        GPU_LUT.put("kirin9000", "Mali-G78");
+        GPU_LUT.put("kirin990", "Mali-G76");
+        GPU_LUT.put("kirin980", "Mali-G76");
+        GPU_LUT.put("ums9620", "Mali-G57");
+        GPU_LUT.put("ums9230", "Mali-G57");
+        GPU_LUT.put("ums512", "Mali-G52");
+        GPU_LUT.put("sp9863a", "PowerVR GE8322");
     }
 
     public static synchronized void init(Context context) {
@@ -131,6 +213,7 @@ public class HardwareInfo {
         detectRam();
         detectGpu();
         detectCpuMaxClock();
+        detectHardwareDetails();
         if (context != null) {
             detectDisplay(context);
         }
@@ -326,6 +409,40 @@ public class HardwareInfo {
     public static String getCpuMaxClock() {
         if (sCpuMaxClock == null) detectCpuMaxClock();
         return sCpuMaxClock != null ? sCpuMaxClock : "";
+    }
+
+    /** Immutable identity data. Unlike load/temperature, this is probed once and cached. */
+    public static final class HardwareDetails {
+        public final String cpuModel;
+        public final String cpuAbi;
+        public final String cpuTopology;
+        public final String gpuVendor;
+        public final String gpuDriver;
+        public final String deviceName;
+        public final String platform;
+
+        private HardwareDetails(String cpuModel, String cpuAbi, String cpuTopology,
+                                String gpuVendor, String gpuDriver, String deviceName,
+                                String platform) {
+            this.cpuModel = cpuModel;
+            this.cpuAbi = cpuAbi;
+            this.cpuTopology = cpuTopology;
+            this.gpuVendor = gpuVendor;
+            this.gpuDriver = gpuDriver;
+            this.deviceName = deviceName;
+            this.platform = platform;
+        }
+    }
+
+    public static HardwareDetails getHardwareDetails() {
+        HardwareDetails cached = sHardwareDetails;
+        if (cached == null) {
+            synchronized (HardwareInfo.class) {
+                if (sHardwareDetails == null) detectHardwareDetails();
+                cached = sHardwareDetails;
+            }
+        }
+        return cached;
     }
 
     public static String getDisplayInfo(Context context) {
@@ -564,24 +681,43 @@ public class HardwareInfo {
     }
 
     private static void detectGpu() {
-        String model = readFileFirstLine("/sys/class/kgsl/kgsl-3d0/gpu_model");
-        if (model != null && !model.trim().isEmpty()) {
-            sGpuModel = model.trim();
-            return;
-        }
-
-        String socCode = getProp("ro.soc.model");
-        if (socCode.isEmpty()) socCode = getProp("ro.board.platform");
-        String clean = socCode.toLowerCase().split("-")[0].replace(" ", "");
-        if (GPU_LUT.containsKey(clean)) {
-            sGpuModel = GPU_LUT.get(clean);
-            return;
-        }
-        for (Map.Entry<String, String> entry : GPU_LUT.entrySet()) {
-            if (clean.contains(entry.getKey())) {
-                sGpuModel = entry.getValue();
+        String[] modelPaths = new String[]{
+            "/sys/class/kgsl/kgsl-3d0/gpu_model",
+            "/sys/class/drm/card0/device/product_name",
+            "/sys/class/drm/card0/device/gpu_model",
+            "/sys/class/misc/mali0/device/gpuinfo",
+            "/sys/kernel/gpu/gpu_model",
+            "/proc/gpuinfo"
+        };
+        for (String path : modelPaths) {
+            String model = cleanIdentity(readFileFirstLine(path));
+            if (!model.isEmpty()) {
+                sGpuModel = model;
                 return;
             }
+        }
+
+        String[] modelProps = new String[]{
+            "ro.gpu.model", "ro.hardware.gpu", "ro.opengles.gpu",
+            "ro.vendor.gpu.model", "vendor.gpu.model"
+        };
+        for (String prop : modelProps) {
+            String model = cleanIdentity(getProp(prop));
+            if (!model.isEmpty() && !"default".equalsIgnoreCase(model)) {
+                sGpuModel = model;
+                return;
+            }
+        }
+
+        String mappedGpu = findMappedModel(GPU_LUT,
+            getProp("ro.soc.model"), getProp("ro.board.platform"),
+            getProp("ro.hardware.chipname"), getProp("ro.chipname"),
+            Build.HARDWARE, readCpuinfoHardware(),
+            readFileFirstLine("/proc/device-tree/compatible"),
+            readFileFirstLine("/sys/firmware/devicetree/base/compatible"));
+        if (!mappedGpu.isEmpty()) {
+            sGpuModel = mappedGpu;
+            return;
         }
 
         String soc = getSocName().toLowerCase();
@@ -596,60 +732,153 @@ public class HardwareInfo {
         else sGpuModel = "Adreno / Mali GPU";
     }
 
-    private static void detectSoc() {
-        String socModel = "";
+    private static void detectHardwareDetails() {
+        String cpuCode = "";
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                socModel = Build.SOC_MODEL;
-            } catch (Throwable ignored) {}
+            try { cpuCode = cleanIdentity(Build.SOC_MODEL); } catch (Throwable ignored) {}
         }
-        if (socModel == null || socModel.isEmpty()) {
-            socModel = getProp("ro.soc.model");
+        if (cpuCode.isEmpty()) cpuCode = firstNonEmpty(
+            getProp("ro.soc.model"), getProp("ro.vendor.soc.model"),
+            getProp("ro.board.platform"), getProp("ro.mediatek.platform"),
+            getProp("ro.hardware.chipname"), getProp("ro.chipname"),
+            readCpuinfoHardware(), readFileFirstLine("/proc/device-tree/model"));
+        String socManufacturer = "";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try { socManufacturer = cleanIdentity(Build.SOC_MANUFACTURER); } catch (Throwable ignored) {}
         }
-        String platform = getProp("ro.board.platform");
-        String hardware = Build.HARDWARE;
-        String chipName = getProp("ro.hardware.chipname");
-        if (chipName == null || chipName.isEmpty()) {
-            chipName = getProp("ro.chipname");
+        if (!socManufacturer.isEmpty() && !cpuCode.toLowerCase(Locale.US).contains(socManufacturer.toLowerCase(Locale.US))) {
+            cpuCode = socManufacturer + " " + cpuCode;
         }
-        String cpuinfoHw = readCpuinfoHardware();
 
-        sSocName = resolveSoc(socModel, platform, hardware, chipName, cpuinfoHw);
+        String abi = "";
+        try {
+            if (Build.SUPPORTED_ABIS != null) {
+                StringBuilder abis = new StringBuilder();
+                for (String value : Build.SUPPORTED_ABIS) {
+                    if (value == null || value.trim().isEmpty()) continue;
+                    if (abis.length() > 0) abis.append(", ");
+                    abis.append(value.trim());
+                }
+                abi = abis.toString();
+            }
+        } catch (Throwable ignored) {}
+
+        String gpu = getGpuModel();
+        String gpuVendor = inferGpuVendor(gpu);
+        String gpuDriver = firstNonEmpty(
+            getProp("ro.gfx.driver.0"), getProp("ro.hardware.egl"), getProp("ro.vendor.gpu.driver")
+        );
+
+        String maker = cleanIdentity(Build.MANUFACTURER);
+        String model = cleanIdentity(Build.MODEL);
+        String deviceName = (maker + " " + model).trim();
+        if (deviceName.isEmpty()) deviceName = cleanIdentity(Build.DEVICE);
+
+        String board = cleanIdentity(Build.BOARD);
+        String kernel = cleanIdentity(System.getProperty("os.version", ""));
+        StringBuilder platform = new StringBuilder("Android ").append(Build.VERSION.RELEASE)
+            .append(" (API ").append(Build.VERSION.SDK_INT).append(")");
+        if (!board.isEmpty()) platform.append(" • ").append(board);
+        if (!kernel.isEmpty()) platform.append(" • Linux ").append(kernel);
+
+        sHardwareDetails = new HardwareDetails(cpuCode, abi, detectCpuTopology(),
+            gpuVendor, gpuDriver, deviceName, platform.toString());
     }
 
-    private static String resolveSoc(String socModel, String platform, String hardware, String chipName, String cpuinfoHw) {
-        String[] candidates = new String[]{socModel, platform, chipName, cpuinfoHw, hardware};
-        for (String cand : candidates) {
-            if (cand == null || cand.trim().isEmpty()) continue;
-            String clean = cand.trim().toLowerCase().split("-")[0].replace(" ", "");
-            if (SOC_LUT.containsKey(clean)) {
-                return SOC_LUT.get(clean);
-            }
-            for (Map.Entry<String, String> entry : SOC_LUT.entrySet()) {
-                if (clean.contains(entry.getKey())) {
-                    return entry.getValue();
+    private static String detectCpuTopology() {
+        TreeMap<Long, Integer> clusters = new TreeMap<>();
+        for (int cpu = 0; cpu < 64; cpu++) {
+            String base = "/sys/devices/system/cpu/cpu" + cpu + "/cpufreq/";
+            long khz = readLongFromFile(base + "cpuinfo_max_freq");
+            if (khz <= 0) khz = readLongFromFile(base + "scaling_max_freq");
+            if (khz > 0) clusters.put(khz, clusters.containsKey(khz) ? clusters.get(khz) + 1 : 1);
+        }
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<Long, Integer> entry : clusters.descendingMap().entrySet()) {
+            if (result.length() > 0) result.append(" + ");
+            result.append(entry.getValue()).append('×')
+                .append(String.format(Locale.US, "%.2f", entry.getKey() / 1_000_000.0))
+                .append(" GHz");
+        }
+        return result.toString();
+    }
+
+    private static String inferGpuVendor(String model) {
+        String value = model == null ? "" : model.toLowerCase(Locale.US);
+        if (value.contains("adreno")) return "Qualcomm";
+        if (value.contains("mali") || value.contains("immortalis")) return "Arm";
+        if (value.contains("powervr")) return "Imagination";
+        if (value.contains("xclipse")) return "Samsung / AMD";
+        return "";
+    }
+
+    private static String firstNonEmpty(String... values) {
+        for (String value : values) {
+            String cleaned = cleanIdentity(value);
+            if (!cleaned.isEmpty()) return cleaned;
+        }
+        return "";
+    }
+
+    private static String cleanIdentity(String value) {
+        if (value == null) return "";
+        String cleaned = value.replace('\n', ' ').replace('\r', ' ').trim();
+        while (cleaned.contains("  ")) cleaned = cleaned.replace("  ", " ");
+        return cleaned.length() > 120 ? cleaned.substring(0, 120) : cleaned;
+    }
+
+    private static void detectSoc() {
+        String buildSoc = "";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try { buildSoc = Build.SOC_MODEL; } catch (Throwable ignored) {}
+        }
+        String[] candidates = new String[]{
+            buildSoc,
+            getProp("ro.soc.model"), getProp("ro.vendor.soc.model"),
+            getProp("ro.board.platform"), getProp("ro.mediatek.platform"),
+            getProp("ro.hardware.chipname"), getProp("ro.chipname"),
+            Build.HARDWARE, readCpuinfoHardware(),
+            readFileFirstLine("/proc/device-tree/model"),
+            readFileFirstLine("/proc/device-tree/compatible"),
+            readFileFirstLine("/sys/firmware/devicetree/base/compatible")
+        };
+        String mapped = findMappedModel(SOC_LUT, candidates);
+        if (!mapped.isEmpty()) {
+            sSocName = mapped;
+            return;
+        }
+        for (String candidate : candidates) {
+            String value = cleanIdentity(candidate).replace("Qualcomm Technologies, Inc", "").trim();
+            if (value.isEmpty() || "qcom".equalsIgnoreCase(value)) continue;
+            sSocName = value;
+            return;
+        }
+        sSocName = "ARM Processor";
+    }
+
+    /** Exact code first, otherwise the longest normalized alias wins. */
+    private static String findMappedModel(Map<String, String> table, String... candidates) {
+        String bestValue = "";
+        int bestKeyLength = -1;
+        for (String candidate : candidates) {
+            String normalized = normalizeHardwareCode(candidate);
+            if (normalized.isEmpty()) continue;
+            String exact = table.get(normalized);
+            if (exact != null) return exact;
+            for (Map.Entry<String, String> entry : table.entrySet()) {
+                String key = normalizeHardwareCode(entry.getKey());
+                if (key.length() > bestKeyLength && normalized.contains(key)) {
+                    bestKeyLength = key.length();
+                    bestValue = entry.getValue();
                 }
             }
         }
+        return bestValue;
+    }
 
-        for (String cand : candidates) {
-            if (cand == null || cand.trim().isEmpty()) continue;
-            String upper = cand.toUpperCase();
-            if (upper.contains("SNAPDRAGON") || upper.contains("DIMENSITY") || upper.contains("TENSOR") || upper.contains("EXYNOS")) {
-                return cand.replace("Qualcomm Technologies, Inc", "").trim();
-            }
-        }
-
-        if (socModel != null && !socModel.trim().isEmpty()) {
-            return socModel.replace("Qualcomm Technologies, Inc", "").trim();
-        }
-        if (platform != null && !platform.trim().isEmpty()) {
-            return platform.toUpperCase().trim();
-        }
-        if (hardware != null && !hardware.trim().isEmpty() && !hardware.equalsIgnoreCase("qcom")) {
-            return hardware.trim();
-        }
-        return "ARM Processor";
+    private static String normalizeHardwareCode(String value) {
+        if (value == null) return "";
+        return value.toLowerCase(Locale.US).replaceAll("[^a-z0-9]", "");
     }
 
     private static void detectStorage() {

@@ -339,6 +339,24 @@
                         android:layout_height="wrap_content"
                         android:text="Battery: Calculating..."
                         android:textColor="@color/text_muted"
+                        android:textSize="11sp"
+                        android:layout_marginBottom="14dp" />
+
+                    <!-- Static identity snapshot: collected once, never polled through root. -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_device_platform"
+                        android:textColor="@color/text_body"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp" />
+                    <TextView
+                        android:id="@+id/tvPlatformSubtext"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/loading_hardware_identity"
+                        android:textColor="@color/text_muted"
                         android:textSize="11sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

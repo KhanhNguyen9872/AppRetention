@@ -24,6 +24,7 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
     public static final int FILTER_ACTIVE_ONLY = 1;
     public static final int FILTER_SYSTEM_ONLY = 2;
     public static final int FILTER_ALL = 3;
+    private static final String PACKAGE_APPRETENTION = "com.hchen.appretention";
 
     public interface OnAppStateChangeListener {
         void onAppStateChanged(AppItem item, int mode, boolean enabled, int position);
@@ -174,6 +175,11 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
             holder.ivIcon.setImageDrawable(item.icon);
         }
 
+        boolean mandatoryRestricted = PACKAGE_APPRETENTION.equals(item.packageName);
+        if (mandatoryRestricted) {
+            item.isVip = false;
+            item.isRestricted = true;
+        }
         if (currentMode == MODE_KEEP_ALIVE) {
             if (item.isRestricted) {
                 // Greyed out and restricted
@@ -191,8 +197,8 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
                 holder.tvBadgeRestricted.setVisibility(View.GONE);
             }
         } else {
-            holder.itemView.setAlpha(1.0f);
-            holder.switchKeepAlive.setEnabled(true);
+            holder.itemView.setAlpha(mandatoryRestricted ? 0.72f : 1.0f);
+            holder.switchKeepAlive.setEnabled(!mandatoryRestricted);
             holder.tvBadgeLocked.setVisibility(View.GONE);
             holder.tvBadgeRestricted.setVisibility(item.isRestricted ? View.VISIBLE : View.GONE);
             holder.tvBadgeRestricted.setText(R.string.badge_restricted);
@@ -203,6 +209,10 @@ public class KeepAliveAdapter extends RecyclerView.Adapter<KeepAliveAdapter.View
             int pos = holder.getBindingAdapterPosition();
             if (pos != RecyclerView.NO_POSITION && pos < displayList.size()) {
                 AppItem currentItem = displayList.get(pos);
+                if (PACKAGE_APPRETENTION.equals(currentItem.packageName)) {
+                    if (listener != null) listener.onRestrictedItemClickedInKeepAlive(currentItem);
+                    return;
+                }
                 if (currentMode == MODE_KEEP_ALIVE) {
                     if (currentItem.isRestricted) {
                         if (listener != null) {

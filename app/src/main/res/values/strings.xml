@@ -27,6 +27,8 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="format_cpu_subtext">%1$s • %2$d Cores</string>
     <string name="format_cpu_subtext_nocores">%s</string>
     <string name="format_cpu_root_required">%1$s • %2$d Cores</string>
+    <string name="format_cpu_identity">CPU ID: %1$s • ABI: %2$s</string>
+    <string name="format_cpu_topology">Clusters: %s</string>
     <string name="label_internal_storage">Internal Storage</string>
     <string name="format_storage_details">%1$.1f GiB / %2$.1f GiB (%3$d%%)</string>
     <string name="format_storage_subtext">Free: %.1f GiB</string>
@@ -47,6 +49,9 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="desc_fork_extensions">Master safety gate for fork-only hooks. Disabled keeps upstream behavior. A reboot is required after changing this setting.</string>
     <string name="toast_reboot_required">Setting verified. Reboot to apply hook registration changes.</string>
     <string name="toast_setting_write_failed">Could not verify the system setting. The previous value was restored.</string>
+    <string name="toast_setting_save_failed">Could not save the selection.</string>
+    <string name="toast_setting_sync_deferred">Selection saved. System synchronization will retry next launch.</string>
+    <string name="toast_appretention_restriction_locked">AppRetention is always Restricted and cannot be assigned Keep Alive.</string>
     <string name="title_tiered_adj">Tiered Retention Clamping</string>
     <string name="desc_tiered_adj">Bumps top background apps to Perceptible tier (ADJ 200-245) for persistent background retention.</string>
     <string name="title_killshield">KillShield Protection</string>
@@ -180,6 +185,11 @@ by: HChenX &amp; KhanhNguyen9872</string>
     <string name="loading_processes">Scanning running processes...</string>
     <string name="label_gpu_display">GPU &amp; Display</string>
     <string name="label_battery_power">Battery &amp; Thermal</string>
+    <string name="label_device_platform">Device &amp; Platform</string>
+    <string name="loading_hardware_identity">Checking device identity...</string>
+    <string name="format_device_platform">%1$s\n%2$s</string>
+    <string name="format_gpu_vendor">Vendor: %s</string>
+    <string name="format_gpu_driver">Driver: %s</string>
     <string name="format_battery_details">%1$d%% • %2$.1f°C</string>
     <string name="format_battery_details_notemp">%d%%</string>
     <string name="format_battery_subtext">%1$s • %2$s • %3$s</string>

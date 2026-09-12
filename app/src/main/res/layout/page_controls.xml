@@ -15,41 +15,6 @@
         android:paddingTop="8dp"
         android:paddingBottom="20dp">
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="@color/card_dark"
-            app:cardCornerRadius="12dp"
-            app:strokeColor="@color/accent_amber"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/switchForkExtensions"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="false"
-                    android:text="@string/title_fork_extensions"
-                    android:textColor="@color/text_title"
-                    android:textSize="14.5sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/desc_fork_extensions"
-                    android:textColor="@color/text_muted"
-                    android:textSize="12sp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
         <!-- ================= SECTION 1: RETENTION ENGINE ================= -->
         <LinearLayout
             android:layout_width="match_parent"

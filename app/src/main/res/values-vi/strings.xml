@@ -27,6 +27,8 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="format_cpu_subtext">%1$s • %2$d nhân</string>
     <string name="format_cpu_subtext_nocores">%s</string>
     <string name="format_cpu_root_required">%1$s • %2$d nhân</string>
+    <string name="format_cpu_identity">Mã CPU: %1$s • ABI: %2$s</string>
+    <string name="format_cpu_topology">Cụm nhân: %s</string>
     <string name="label_internal_storage">Bộ Nhớ Trong</string>
     <string name="format_storage_details">%1$.1f GiB / %2$.1f GiB (%3$d%%)</string>
     <string name="format_storage_subtext">Còn trống: %.1f GiB</string>
@@ -47,6 +49,9 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="desc_fork_extensions">Công tắc an toàn tổng cho các hook chỉ có ở bản fork. Khi tắt, module giữ hành vi của upstream. Cần khởi động lại sau khi thay đổi.</string>
     <string name="toast_reboot_required">Đã xác minh cài đặt. Hãy khởi động lại để áp dụng thay đổi hook.</string>
     <string name="toast_setting_write_failed">Không thể xác minh cài đặt hệ thống. Đã khôi phục giá trị trước đó.</string>
+    <string name="toast_setting_save_failed">Không thể lưu lựa chọn.</string>
+    <string name="toast_setting_sync_deferred">Đã lưu lựa chọn. Ứng dụng sẽ thử đồng bộ lại khi mở lần sau.</string>
+    <string name="toast_appretention_restriction_locked">AppRetention luôn thuộc danh sách Hạn chế và không thể gán Giữ nền.</string>
     <string name="title_tiered_adj">Phân Tầng Kẹp Giữ Nền</string>
     <string name="desc_tiered_adj">Đẩy các app ngầm gần nhất lên phân tầng Perceptible (ADJ 200-245) để giữ trạng thái sống liên tục.</string>
     <string name="title_killshield">Khiên Bảo Vệ KillShield</string>
@@ -180,6 +185,11 @@ bởi: HChenX &amp; KhanhNguyen9872</string>
     <string name="loading_processes">Đang quét tiến trình chạy ngầm...</string>
     <string name="label_gpu_display">Đồ Họa &amp; Màn Hình</string>
     <string name="label_battery_power">Pin &amp; Nhiệt Độ</string>
+    <string name="label_device_platform">Thiết Bị &amp; Nền Tảng</string>
+    <string name="loading_hardware_identity">Đang kiểm tra nhận dạng thiết bị...</string>
+    <string name="format_device_platform">%1$s\n%2$s</string>
+    <string name="format_gpu_vendor">Hãng GPU: %s</string>
+    <string name="format_gpu_driver">Trình điều khiển: %s</string>
     <string name="format_battery_details">%1$d%% • %2$.1f°C</string>
     <string name="format_battery_details_notemp">%d%%</string>
     <string name="format_battery_subtext">%1$s • %2$s • %3$s</string>

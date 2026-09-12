@@ -60,7 +60,6 @@ import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.hchen.appretention.BuildConfig;
 import com.hchen.appretention.R;
-import com.hchen.appretention.hook.system.opt.ForkFeatureGate;
 import com.hchen.hooktool.utils.SystemPropTool;
 
 import java.io.BufferedReader;
@@ -85,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_NUBIA = "persist.hchen.nubia.opt.enable";
     private static final String KEY_HIBERNATION = "persist.hchen.hibernation.opt.enable";
     private static final String KEY_AUTOSTART = "persist.hchen.autostart.opt.enable";
-    private static final String KEY_FORK_EXTENSIONS = ForkFeatureGate.PROP_ENABLE;
+    private static final String PACKAGE_APPRETENTION = "com.hchen.appretention";
 
     // Memory-leak-free Caches
     private static final LruCache<String, Drawable.ConstantState> sIconCache = new LruCache<>(150);
@@ -126,6 +125,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvDisplaySubtext;
     private TextView tvBatteryDetails;
     private TextView tvBatterySubtext;
+    private TextView tvPlatformSubtext;
     private LinearProgressIndicator pbBatteryUsage;
 
     static class AppMeta {
@@ -198,7 +198,6 @@ public class MainActivity extends AppCompatActivity {
 
     // Tab 3: Settings UI elements
     private MaterialSwitch switchImmediateKill;
-    private MaterialSwitch switchForkExtensions;
     private MaterialSwitch switchTieredAdj;
     private MaterialSwitch switchKillShield;
     private MaterialSwitch switchDoze;
@@ -246,9 +245,11 @@ public class MainActivity extends AppCompatActivity {
         setupSwitches();
         checkAndPromptRoot();
 
-        // Initial sync of policy files
-        Set<String> vips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
-        Set<String> restricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
+        // AppRetention is a mandatory restricted package: never boost or keep its UI alive.
+        Set<String> vips = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
+        Set<String> restricted = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
+        enforceAppRetentionRestriction(vips, restricted);
+        persistPolicySets(vips, restricted);
         syncPolicyFiles(vips, restricted);
         syncImmediateKillFile(prefs.getBoolean(KEY_RESTRICT_IMMEDIATE, false));
     }
@@ -270,7 +271,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        mTimerHandler.removeCallbacks(mPeriodicRefreshRunnable);
+        mTimerHandler.removeCallbacksAndMessages(null);
+        if (!isChangingConfigurations()) {
+            // The configuration UI must never remain as a background process. Xposed hooks
+            // run inside their target processes and remain active independently of this UI.
+            finishAndRemoveTask();
+            android.os.Process.killProcess(android.os.Process.myPid());
+        }
     }
 
     @Override
@@ -360,6 +367,7 @@ public class MainActivity extends AppCompatActivity {
         tvDisplaySubtext = findViewById(R.id.tvDisplaySubtext);
         tvBatteryDetails = findViewById(R.id.tvBatteryDetails);
         tvBatterySubtext = findViewById(R.id.tvBatterySubtext);
+        tvPlatformSubtext = findViewById(R.id.tvPlatformSubtext);
         pbBatteryUsage = findViewById(R.id.pbBatteryUsage);
 
         sWorkerPool.execute(() -> HardwareInfo.init(getApplicationContext()));
@@ -438,6 +446,10 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onRestrictedItemClickedInKeepAlive(AppItem item) {
+                    if (item != null && PACKAGE_APPRETENTION.equals(item.packageName)) {
+                        Toast.makeText(MainActivity.this, R.string.toast_appretention_restriction_locked, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     new com.google.android.material.dialog.MaterialAlertDialogBuilder(MainActivity.this)
                             .setTitle(R.string.dialog_quick_switch_title)
                             .setMessage(getString(R.string.dialog_quick_switch_message, item.appName))
@@ -500,7 +512,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // --- Tab 3: Controls Page Initialization ---
-        switchForkExtensions = findViewById(R.id.switchForkExtensions);
         switchTieredAdj = findViewById(R.id.switchTieredAdj);
         switchKillShield = findViewById(R.id.switchKillShield);
         switchDoze = findViewById(R.id.switchDoze);
@@ -591,59 +602,55 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupSwitches() {
         switchImmediateKill = findViewById(R.id.switchImmediateKill);
-        bindSwitch(switchForkExtensions, KEY_FORK_EXTENSIONS, false);
         bindSwitch(switchImmediateKill, KEY_RESTRICT_IMMEDIATE, false);
         bindSwitch(switchTieredAdj, KEY_TIERED_ADJ, true);
         bindSwitch(switchKillShield, KEY_KILL_SHIELD, true);
         bindSwitch(switchDoze, KEY_DOZE, true);
-        bindSwitch(switchNubia, KEY_NUBIA, false);
-        bindSwitch(switchHibernation, KEY_HIBERNATION, false);
-        bindSwitch(switchAutoStart, KEY_AUTOSTART, false);
-        updateForkExtensionControls(switchForkExtensions != null && switchForkExtensions.isChecked());
+        bindSwitch(switchNubia, KEY_NUBIA, true);
+        bindSwitch(switchHibernation, KEY_HIBERNATION, true);
+        bindSwitch(switchAutoStart, KEY_AUTOSTART, true);
     }
 
     private void bindSwitch(MaterialSwitch sw, String key, boolean defValue) {
         if (sw == null) return;
         String propertyValue = SystemPropTool.getProp(key, "");
-        boolean val = propertyValue.isEmpty() ? defValue : Boolean.parseBoolean(propertyValue);
-        prefs.edit().putBoolean(key, val).apply();
+        boolean hasSavedChoice = prefs.contains(key);
+        boolean propertyChoice = propertyValue.isEmpty() ? defValue : Boolean.parseBoolean(propertyValue);
+        // Once the user has made a choice, app storage is authoritative. This prevents a
+        // missing or stale vendor property from turning a switch back on after reboot.
+        boolean val = hasSavedChoice ? prefs.getBoolean(key, defValue) : propertyChoice;
+        prefs.edit().putBoolean(key, val).commit();
         sw.setChecked(val);
+        // Seed or repair the persistent property without treating restoration as a new click.
+        if (propertyValue.isEmpty() || propertyChoice != val) {
+            RootTool.setBooleanPropVerified(key, val, null);
+        }
         java.util.concurrent.atomic.AtomicBoolean internalUpdate = new java.util.concurrent.atomic.AtomicBoolean(false);
         sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (internalUpdate.get()) return;
+            // Persist user intent synchronously before any asynchronous root work. The UI must
+            // never jump back to its default merely because the process exits or root sync fails.
+            boolean saved = prefs.edit().putBoolean(key, isChecked).commit();
+            if (!saved) {
+                internalUpdate.set(true);
+                sw.setChecked(!isChecked);
+                internalUpdate.set(false);
+                Toast.makeText(this, R.string.toast_setting_save_failed, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (KEY_RESTRICT_IMMEDIATE.equals(key)) {
+                syncImmediateKillFile(isChecked);
+                if (isChecked) refreshRunningProcesses();
+            }
             sw.setEnabled(false);
             RootTool.setBooleanPropVerified(key, isChecked, success -> runOnUiThread(() -> {
-                internalUpdate.set(true);
-                if (success) {
-                    prefs.edit().putBoolean(key, isChecked).apply();
-                    if (KEY_RESTRICT_IMMEDIATE.equals(key)) {
-                        syncImmediateKillFile(isChecked);
-                        if (isChecked) refreshRunningProcesses();
-                    }
-                    if (KEY_FORK_EXTENSIONS.equals(key)) {
-                        updateForkExtensionControls(isChecked);
-                        Toast.makeText(this, R.string.toast_reboot_required, Toast.LENGTH_LONG).show();
-                    }
-                } else {
-                    sw.setChecked(!isChecked);
-                    Toast.makeText(this, R.string.toast_setting_write_failed, Toast.LENGTH_LONG).show();
+                if (!success) {
+                    // Keep the saved selection. bindSwitch retries synchronization next launch.
+                    Toast.makeText(this, R.string.toast_setting_sync_deferred, Toast.LENGTH_LONG).show();
                 }
-                internalUpdate.set(false);
                 sw.setEnabled(true);
             }));
         });
-    }
-
-    private void updateForkExtensionControls(boolean enabled) {
-        MaterialSwitch[] extensionSwitches = new MaterialSwitch[]{
-            switchImmediateKill, switchTieredAdj, switchKillShield, switchDoze,
-            switchNubia, switchHibernation, switchAutoStart
-        };
-        for (MaterialSwitch item : extensionSwitches) {
-            if (item == null) continue;
-            item.setEnabled(enabled);
-            item.setAlpha(enabled ? 1.0f : 0.55f);
-        }
     }
 
     private void checkAndPromptRoot() {
@@ -691,6 +698,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applyAppStateChange(AppItem item, int mode, boolean enabled) {
+        if (item == null || PACKAGE_APPRETENTION.equals(item.packageName)) {
+            Toast.makeText(this, R.string.toast_appretention_restriction_locked, Toast.LENGTH_SHORT).show();
+            return;
+        }
         Set<String> vipSet = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
         Set<String> restrictSet = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
 
@@ -716,13 +727,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        prefs.edit()
-                .putStringSet(KEY_VIP_PACKAGES, vipSet)
-                .putStringSet(KEY_RESTRICT_PACKAGES, restrictSet)
-                .apply();
-
-        RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
-        RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
+        enforceAppRetentionRestriction(vipSet, restrictSet);
+        persistPolicySets(vipSet, restrictSet);
 
         syncPolicyFiles(vipSet, restrictSet);
 
@@ -736,6 +742,10 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void applyPolicyToPackage(String packageName, String appName, boolean keepAlive, boolean restricted) {
+        if (PACKAGE_APPRETENTION.equals(packageName)) {
+            Toast.makeText(this, R.string.toast_appretention_restriction_locked, Toast.LENGTH_SHORT).show();
+            return;
+        }
         Set<String> vipSet = new HashSet<>(prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet()));
         Set<String> restrictSet = new HashSet<>(prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet()));
 
@@ -752,13 +762,8 @@ public class MainActivity extends AppCompatActivity {
             restrictSet.remove(packageName);
         }
 
-        prefs.edit()
-                .putStringSet(KEY_VIP_PACKAGES, vipSet)
-                .putStringSet(KEY_RESTRICT_PACKAGES, restrictSet)
-                .apply();
-
-        RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
-        RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
+        enforceAppRetentionRestriction(vipSet, restrictSet);
+        persistPolicySets(vipSet, restrictSet);
 
         syncPolicyFiles(vipSet, restrictSet);
 
@@ -881,8 +886,13 @@ public class MainActivity extends AppCompatActivity {
 
         Set<String> currentVips = prefs.getStringSet(KEY_VIP_PACKAGES, Collections.emptySet());
         Set<String> currentRestricted = prefs.getStringSet(KEY_RESTRICT_PACKAGES, Collections.emptySet());
-        swKeepAlive.setChecked(currentVips.contains(basePkg));
-        swRestrict.setChecked(currentRestricted.contains(basePkg));
+        boolean mandatoryRestricted = PACKAGE_APPRETENTION.equals(basePkg);
+        swKeepAlive.setChecked(!mandatoryRestricted && currentVips.contains(basePkg));
+        swRestrict.setChecked(mandatoryRestricted || currentRestricted.contains(basePkg));
+        if (mandatoryRestricted) {
+            swKeepAlive.setEnabled(false);
+            swRestrict.setEnabled(false);
+        }
 
         final boolean[] isProgrammatic = {false};
 
@@ -1074,10 +1084,9 @@ public class MainActivity extends AppCompatActivity {
 
             List<AppItem> loadedList = new ArrayList<>(installed.size());
             for (ApplicationInfo ai : installed) {
-                if (getPackageName().equals(ai.packageName)) continue;
-
+                boolean isAppRetention = PACKAGE_APPRETENTION.equals(ai.packageName);
                 boolean isPinned = currentVips.contains(ai.packageName);
-                boolean isRestricted = currentRestricted.contains(ai.packageName);
+                boolean isRestricted = isAppRetention || currentRestricted.contains(ai.packageName);
                 boolean isUserApp = (ai.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
                 boolean isUpdatedSystem = (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
                 boolean hasLauncher = launchables.contains(ai.packageName);
@@ -1219,6 +1228,7 @@ public class MainActivity extends AppCompatActivity {
             String gpuModel = HardwareInfo.getGpuModel();
             String displayInfo = HardwareInfo.getDisplayInfo(MainActivity.this);
             HardwareInfo.GpuStats gpuStats = HardwareInfo.getGpuStats();
+            HardwareInfo.HardwareDetails hardwareDetails = HardwareInfo.getHardwareDetails();
 
             // 5. Battery & Thermal Info
             HardwareInfo.BatteryInfo bInfo = HardwareInfo.getBatteryInfo(MainActivity.this);
@@ -1257,6 +1267,13 @@ public class MainActivity extends AppCompatActivity {
                         if (!cpuMaxClock.isEmpty() && !cpuTemp.isEmpty()) sb.append(" • ");
                         if (!cpuTemp.isEmpty()) sb.append(cpuTemp);
                         sb.append(")");
+                    }
+                    if (hardwareDetails != null && (!hardwareDetails.cpuModel.isEmpty() || !hardwareDetails.cpuAbi.isEmpty())) {
+                        sb.append('\n').append(getString(R.string.format_cpu_identity,
+                            hardwareDetails.cpuModel, hardwareDetails.cpuAbi));
+                    }
+                    if (hardwareDetails != null && !hardwareDetails.cpuTopology.isEmpty()) {
+                        sb.append('\n').append(getString(R.string.format_cpu_topology, hardwareDetails.cpuTopology));
                     }
                     tvCpuSubtext.setText(sb.toString());
                 }
@@ -1303,7 +1320,18 @@ public class MainActivity extends AppCompatActivity {
                         }
                         sbGpu.append(displayInfo);
                     }
+                    if (hardwareDetails != null && !hardwareDetails.gpuVendor.isEmpty()) {
+                        sbGpu.append('\n').append(getString(R.string.format_gpu_vendor, hardwareDetails.gpuVendor));
+                    }
+                    if (hardwareDetails != null && !hardwareDetails.gpuDriver.isEmpty()) {
+                        sbGpu.append('\n').append(getString(R.string.format_gpu_driver, hardwareDetails.gpuDriver));
+                    }
                     tvDisplaySubtext.setText(sbGpu.toString());
+                }
+
+                if (tvPlatformSubtext != null && hardwareDetails != null) {
+                    tvPlatformSubtext.setText(getString(R.string.format_device_platform,
+                        hardwareDetails.deviceName, hardwareDetails.platform));
                 }
 
                 // Battery & Thermal
@@ -1363,9 +1391,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (tvShieldStatus != null) {
-                    tvShieldStatus.setText(ForkFeatureGate.isEnabled()
-                        ? R.string.status_killshield_active
-                        : R.string.status_fork_extensions_disabled);
+                    tvShieldStatus.setText(R.string.status_killshield_active);
                 }
             });
             } finally {
@@ -1854,7 +1880,23 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private static void enforceAppRetentionRestriction(Set<String> vipSet, Set<String> restrictSet) {
+        vipSet.remove(PACKAGE_APPRETENTION);
+        restrictSet.add(PACKAGE_APPRETENTION);
+    }
+
+    private void persistPolicySets(Set<String> vipSet, Set<String> restrictSet) {
+        enforceAppRetentionRestriction(vipSet, restrictSet);
+        prefs.edit()
+            .putStringSet(KEY_VIP_PACKAGES, new HashSet<>(vipSet))
+            .putStringSet(KEY_RESTRICT_PACKAGES, new HashSet<>(restrictSet))
+            .commit();
+        RootTool.setProp(KEY_VIP_PACKAGES, String.join(",", vipSet));
+        RootTool.setProp(KEY_RESTRICT_PACKAGES, String.join(",", restrictSet));
+    }
+
     private void syncPolicyFiles(Set<String> vipSet, Set<String> restrictSet) {
+        enforceAppRetentionRestriction(vipSet, restrictSet);
         sWorkerPool.execute(() -> {
             File[] restrictFiles = new File[]{
                 new File("/data/user_de/0/com.hchen.appretention/files/restricted_packages.txt"),

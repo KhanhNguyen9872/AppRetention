@@ -115,6 +115,6 @@ public class HookInit extends ModuleEntrance {
     }
 
     private boolean isEnableOneUi() {
-        return SystemPropTool.getProp("persist.hchen.oneui.enable", false);
+        return SystemPropTool.getProp("persist.hchen.oneui.enable", true);
     }
 }

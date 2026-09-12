@@ -65,7 +65,10 @@ public final class RootTool {
                 Process reader = null;
                 try {
                     String expected = String.valueOf(value);
-                    setter = Runtime.getRuntime().exec(new String[]{"su", "-c", "setprop " + key + " " + expected});
+                    String persistCommand = "if command -v resetprop >/dev/null 2>&1 "
+                        + "&& resetprop " + key + " " + expected + "; then :; else "
+                        + "setprop " + key + " " + expected + "; fi";
+                    setter = Runtime.getRuntime().exec(new String[]{"su", "-c", persistCommand});
                     boolean exited = setter.waitFor(5, TimeUnit.SECONDS);
                     if (!exited) setter.destroyForcibly();
 

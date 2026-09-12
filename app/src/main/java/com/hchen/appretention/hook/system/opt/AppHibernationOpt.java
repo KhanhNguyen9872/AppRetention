@@ -50,8 +50,9 @@ public final class AppHibernationOpt {
                         if (args != null && args.length > 0) {
                             Object pkgArg = getArg(0);
                             String pkg = pkgArg != null ? pkgArg.toString() : null;
-                            if (pkg != null && BackgroundRestrictOpt.isRestricted(pkg)) {
-                                return; // Bỏ qua app bị giới hạn nền, cho phép ngủ đông
+                            if (pkg != null && (BackgroundRestrictOpt.isRestricted(pkg)
+                                || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(pkg))) {
+                                return; // Allow restricted apps and this UI app to hibernate normally.
                             }
                             Object val = args[args.length - 1];
                             if (Boolean.TRUE.equals(val)) {
@@ -71,6 +72,10 @@ public final class AppHibernationOpt {
                     @Override
                     public void before() {
                         if (!isEnabled()) return;
+                        Object pkgArg = getArg(0);
+                        String pkg = pkgArg != null ? pkgArg.toString() : null;
+                        if (pkg != null && (BackgroundRestrictOpt.isRestricted(pkg)
+                            || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(pkg))) return;
                         setResult(false);
                     }
                 });
@@ -82,6 +87,6 @@ public final class AppHibernationOpt {
 
     private static boolean isEnabled() {
         return ForkFeatureGate.isEnabled()
-            && SystemPropTool.getProp("persist.hchen.hibernation.opt.enable", false);
+            && SystemPropTool.getProp("persist.hchen.hibernation.opt.enable", true);
     }
 }

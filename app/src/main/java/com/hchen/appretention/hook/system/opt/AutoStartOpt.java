@@ -74,8 +74,8 @@ public final class AutoStartOpt {
                             Object[] args = getArgs();
                             if (args != null && args.length > 0) {
                                 for (Object a : args) {
-                                    if (a instanceof String && BackgroundRestrictOpt.isRestricted((String) a)) {
-                                        return; // Don't allow restricted apps to autostart
+                                    if (a instanceof String && isExcludedTarget((String) a)) {
+                                        return; // Do not bypass startup policy for restricted apps or this UI.
                                     }
                                 }
                             }
@@ -98,8 +98,8 @@ public final class AutoStartOpt {
                             Object[] args = getArgs();
                             if (args != null && args.length > 0) {
                                 for (Object a : args) {
-                                    if (a instanceof String && BackgroundRestrictOpt.isRestricted((String) a)) {
-                                        return; // Allow restriction for restricted apps
+                                    if (a instanceof String && isExcludedTarget((String) a)) {
+                                        return; // Allow OEM prevention for restricted apps or this UI.
                                     }
                                 }
                             }
@@ -119,8 +119,13 @@ public final class AutoStartOpt {
         XposedLog.logI(TAG, "AutoStartOpt initialized successfully! Hooked " + hookedCount + " OEM methods.");
     }
 
+    private static boolean isExcludedTarget(String packageName) {
+        return BackgroundRestrictOpt.isRestricted(packageName)
+            || BackgroundRestrictOpt.PACKAGE_APPRETENTION.equals(packageName);
+    }
+
     private static boolean isEnabled() {
         return ForkFeatureGate.isEnabled()
-            && SystemPropTool.getProp("persist.hchen.autostart.opt.enable", false);
+            && SystemPropTool.getProp("persist.hchen.autostart.opt.enable", true);
     }
 }
